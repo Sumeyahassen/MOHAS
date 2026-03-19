@@ -1,0 +1,2219 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  SUPER_ADMIN
+  PROGRAM_MANAGER
+  REGIONAL_COORDINATOR
+  M_AND_E_OFFICER
+  DATA_VERIFIER
+  TRAINER
+  COACH
+  ENUMERATOR
+  ENTERPRISE_READ_ONLY
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+}
+
+enum ConsentStatus {
+  NOT_REQUESTED
+  REQUESTED
+  CONSENTED
+  REFUSED
+  WITHDRAWN
+}
+
+enum FormStatus {
+  DRAFT
+  SUBMITTED
+  QC_PENDING
+  QC_REJECTED
+  QC_APPROVED
+  VERIFIED
+}
+
+enum QcStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum EvidenceLinkType {
+  BASELINE_FORM
+  MIDLINE_FORM
+  ENDLINE_FORM
+  COACHING_VISIT
+}
+
+enum ReportType {
+  ENTERPRISE_BASELINE_PDF
+  ENTERPRISE_MIDLINE_PDF
+  ENTERPRISE_ENDLINE_PDF
+  COACHING_SUMMARY_PDF
+  CERTIFICATE_PDF
+}
+
+enum ReportStatus {
+  PENDING
+  GENERATED
+  FAILED
+}
+
+enum TriangulationStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  PASSED
+  FAILED
+}
+
+enum CertificateStatus {
+  LOCKED
+  UNLOCKED
+  ISSUED
+}
+
+enum FollowUpType {
+  IN_PERSON
+  PHONE
+}
+
+model User {
+  id String @id @default(uuid())
+
+  name   String
+  role   UserRole
+  phone  String?
+  email  String? @unique
+  region String?
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  @@map("users")
+}
+
+// Stored once per enterprise + baseline snapshot
+model Enterprise {
+  id String @id @default(uuid())
+
+  enterprise_name    String
+  owner_name         String
+  gender             Gender
+  age                Int?
+  sector             String
+  business_activity String?
+  location           String
+  contact_number     String?
+  date_coaching_started DateTime?
+
+  baseline_no_of_employees Int?
+  baseline_monthly_revenue Decimal? @db.Decimal(15, 2)
+
+  existing_record_keeping_system Boolean?
+  existing_record_keeping_system_description String?
+
+  key_business_challenges_identified String[] // top 2 (as strings)
+
+  consent_status ConsentStatus
+  loan_distribution_amount Decimal? @db.Decimal(15, 2)
+
+  region String?
+
+  // Audit fields
+  created_by String?
+  updated_by String?
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  created_by_user User? @relation("enterprise_created_by", fields: [created_by], references: [id])
+  updated_by_user User? @relation("enterprise_updated_by", fields: [updated_by], references: [id])
+
+  baseline_forms    BaselineForm[]
+  midline_forms     MidlineForm[]
+  endline_forms     EndlineForm[]
+  iaps              Iap[]
+  coaching_visits   CoachingVisit[]
+  evidence          Evidence[]
+  qc_checks         QcCheck[]
+  reports_log       ReportsLog[]
+  triangulation     TriangulationChecklist?
+  certificates      Certificate[]
+  phone_follow_ups  PhoneFollowUp[]
+
+  @@index([region])
+  @@index([enterprise_name])
+  @@map("enterprises")
+}
+
+model BaselineForm {
+  id String @id @default(uuid())
+
+  enterprise_id String
+  enterprise Enterprise @relation(fields: [enterprise_id], references: [id])
+
+  // Audit fields
+  created_by String
+  updated_by String
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+  created_by_user User @relation("baseline_created_by", fields: [created_by], references: [id])
+  updated_by_user User @relation("baseline_updated_by", fields: [updated_by], references: [id])
+
+  status FormStatus @default(DRAFT)
+  verified_at DateTime?
+  verified_by String?
+  verified_by_user User? @relation("baseline_verified_by", fields: [verified_by], references: [id])
+
+  // Required for all forms
+  gps_timestamp DateTime?
+
+  // Baseline assessment JSON (must contain keys from your list)
+  responses Json
+
+  evidence  Evidence[]
+  qc_checks QcCheck[]
+
+  @@index([enterprise_id])
+  @@map("baseline_forms")
+}
+
+model MidlineForm {
+  id String @id @default(uuid())
+
+  enterprise_id String
+  enterprise Enterprise @relation(fields: [enterprise_id], references: [id])
+
+  // Audit fields
+  created_by String
+  updated_by String
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+  created_by_user User @relation("midline_created_by", fields: [created_by], references: [id])
+  updated_by_user User @relation("midline_updated_by", fields: [updated_by], references: [id])
+
+  status FormStatus @default(DRAFT)
+  verified_at DateTime?
+  verified_by String?
+  verified_by_user User? @relation("midline_verified_by", fields: [verified_by], references: [id])
+
+  gps_timestamp DateTime?
+  responses Json
+
+  evidence  Evidence[]
+  qc_checks QcCheck[]
+
+  @@index([enterprise_id])
+  @@map("midline_forms")
+}
+
+model EndlineForm {
+  id String @id @default(uuid())
+
+  enterprise_id String
+  enterprise Enterprise @relation(fields: [enterprise_id], references: [id])
+
+  // Audit fields
+  created_by String
+  updated_by String
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+  created_by_user User @relation("endline_created_by", fields: [created_by], references: [id])
+  updated_by_user User @relation("endline_updated_by", fields: [updated_by], references: [id])
+
+  status FormStatus @default(DRAFT)
+  verified_at DateTime?
+  verified_by String?
+  verified_by_user User? @relation("endline_verified_by", fields: [verified_by], references: [id])
+
+  gps_timestamp DateTime?
+  responses Json
+
+  evidence  Evidence[]
+  qc_checks QcCheck[]
+
+  @@index([enterprise_id])
+  @@map("endline_forms")
+}
+
+model Iap {
+  id String @id @default(uuid())
+
+  enterprise_id String
+  enterprise Enterprise @relation(fields: [enterprise_id], references: [id])
+
+  // Audit fields
+  created_by String
+  updated_by String
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+  created_by_user User @relation("iap_created_by", fields: [created_by], references: [id])
+  updated_by_user User @relation("iap_updated_by", fields: [updated_by], references: [id])
+
+  status FormStatus @default(DRAFT)
+
+  // IAP tasks: [{ task, owner, deadline, status, evidence_url }]
+  tasks Json
+
+  signoff Boolean @default(false)
+  signed_by String?
+  signed_by_user User? @relation("iap_signed_by", fields: [signed_by], references: [id])
+  signed_at DateTime?
+
+  gps_timestamp DateTime?
+
+  @@index([enterprise_id])
+  @@map("iaps")
+}
+
+model CoachingVisit {
+  id String @id @default(uuid())
+
+  enterprise_id String
+  enterprise Enterprise @relation(fields: [enterprise_id], references: [id])
+
+  // Audit fields
+  coach_id String
+  created_by String
+  updated_by String
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+  coach_user User @relation("coaching_visit_coach", fields: [coach_id], references: [id])
+  created_by_user User @relation("coaching_visit_created_by", fields: [created_by], references: [id])
+  updated_by_user User @relation("coaching_visit_updated_by", fields: [updated_by], references: [id])
+
+  session_no Int // 1..8
+
+  date DateTime
+  key_focus_area String
+  key_issues_identified String
+  actions_agreed String
+
+  // Array of URLs (at least 1 mandatory)
+  evidence_collected String[]
+
+  follow_up_date DateTime?
+  follow_up_type FollowUpType
+
+  // Mandatory JSON object with keys you provided
+  measurable_results Json
+
+  gps_timestamp DateTime?
+
+  phone_follow_ups PhoneFollowUp[]
+  evidence          Evidence[]
+  qc_checks         QcCheck[]
+
+  @@index([enterprise_id, coach_id])
+  @@index([coach_id, date])
+  @@index([enterprise_id, date])
+  @@unique([enterprise_id, session_no])
+  @@map("coaching_visits")
+}
+
+model PhoneFollowUp {
+  id String @id @default(uuid())
+
+  coaching_visit_id String
+  coaching_visit CoachingVisit @relation(fields: [coaching_visit_id], references: [id])
+
+  // Audit fields
+  created_by String
+  updated_by String
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+  created_by_user User @relation("phone_followup_created_by", fields: [created_by], references: [id])
+  updated_by_user User @relation("phone_followup_updated_by", fields: [updated_by], references: [id])
+
+  // Phone follow-up log fields
+  date DateTime
+  purpose_of_call String
+  issue_addressed String
+  advice_given String
+  next_action String
+
+  gps_timestamp DateTime?
+
+  @@index([coaching_visit_id, date])
+  @@map("phone_follow_ups")
+}
+
+model Training {
+  id String @id @default(uuid())
+
+  scheduled_at DateTime
+  location String?
+  trainer_id String?
+  trainer_user User? @relation("training_trainer", fields: [trainer_id], references: [id])
+
+  // Audit fields
+  created_by String
+  updated_by String
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+  created_by_user User @relation("training_created_by", fields: [created_by], references: [id])
+  updated_by_user User @relation("training_updated_by", fields: [updated_by], references: [id])
+
+  gps_timestamp DateTime?
+  responses Json?
+
+  attendance Attendance[]
+
+  @@index([scheduled_at])
+  @@map("trainings")
+}
+
+model Attendance {
+  id String @id @default(uuid())
+
+  training_id String
+  training Training @relation(fields: [training_id], references: [id])
+
+  enterprise_id String
+  enterprise Enterprise @relation(fields: [enterprise_id], references: [id])
+
+  attended Boolean @default(false)
+
+  // exact 3-question feedback
+  feedback_q1 String?
+  feedback_q2 String?
+  feedback_q3 String?
+  feedback_notes String?
+
+  gps_timestamp DateTime?
+
+  // Audit fields
+  created_by String
+  updated_by String
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+  created_by_user User @relation("attendance_created_by", fields: [created_by], references: [id])
+  updated_by_user User @relation("attendance_updated_by", fields: [updated_by], references: [id])
+
+  @@index([training_id, enterprise_id])
+  @@map("attendance")
+}
+
+model Evidence {
+  id String @id @default(uuid())
+
+  link_type EvidenceLinkType
+
+  enterprise_id String?
+  enterprise Enterprise? @relation(fields: [enterprise_id], references: [id])
+
+  baseline_form_id String?
+  baseline_form BaselineForm? @relation(fields: [baseline_form_id], references: [id])
+
+  midline_form_id String?
+  midline_form MidlineForm? @relation(fields: [midline_form_id], references: [id])
+
+  endline_form_id String?
+  endline_form EndlineForm? @relation(fields: [endline_form_id], references: [id])
+
+  coaching_visit_id String?
+  coaching_visit CoachingVisit? @relation(fields: [coaching_visit_id], references: [id])
+
+  uploaded_by String?
+  uploaded_by_user User? @relation("evidence_uploaded_by", fields: [uploaded_by], references: [id])
+
+  url String
+  thumbnail_url String?
+  storage_provider String?
+  cloudinary_public_id String?
+  caption String?
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  @@index([enterprise_id])
+  @@map("evidence")
+}
+
+model QcCheck {
+  id String @id @default(uuid())
+
+  qc_status QcStatus @default(PENDING)
+  notes String?
+
+  checked_by String?
+  checked_by_user User? @relation("qc_checked_by", fields: [checked_by], references: [id])
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  enterprise_id String?
+  enterprise Enterprise? @relation(fields: [enterprise_id], references: [id])
+
+  baseline_form_id String?
+  baseline_form BaselineForm? @relation(fields: [baseline_form_id], references: [id])
+
+  midline_form_id String?
+  midline_form MidlineForm? @relation(fields: [midline_form_id], references: [id])
+
+  endline_form_id String?
+  endline_form EndlineForm? @relation(fields: [endline_form_id], references: [id])
+
+  coaching_visit_id String?
+  coaching_visit CoachingVisit? @relation(fields: [coaching_visit_id], references: [id])
+
+  @@index([enterprise_id])
+  @@map("qc_checks")
+}
+
+model ReportsLog {
+  id String @id @default(uuid())
+
+  enterprise_id String?
+  enterprise Enterprise? @relation(fields: [enterprise_id], references: [id])
+
+  report_type ReportType
+  status ReportStatus @default(PENDING)
+
+  file_url String?
+  meta Json?
+
+  generated_by String?
+  generated_by_user User? @relation("reports_generated_by", fields: [generated_by], references: [id])
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  @@index([enterprise_id])
+  @@map("reports_log")
+}
+
+model TriangulationChecklist {
+  id String @id @default(uuid())
+
+  enterprise_id String @unique
+  enterprise Enterprise @relation(fields: [enterprise_id], references: [id])
+
+  status TriangulationStatus @default(NOT_STARTED)
+  checklist Json
+
+  verified_by String?
+  verified_by_user User? @relation("triangulation_verified_by", fields: [verified_by], references: [id])
+  verified_at DateTime?
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  certificates Certificate[]
+
+  @@map("triangulation_checklists")
+}
+
+model Certificate {
+  id String @id @default(uuid())
+
+  enterprise_id String @unique
+  enterprise Enterprise @relation(fields: [enterprise_id], references: [id])
+
+  triangulation_checklist_id String? @unique
+  triangulation TriangulationChecklist? @relation(fields: [triangulation_checklist_id], references: [id])
+
+  status CertificateStatus @default(LOCKED)
+  pdf_url String?
+  locked_reason String?
+
+  issued_by String?
+  issued_by_user User? @relation("certificate_issued_by", fields: [issued_by], references: [id])
+
+  unlocked_at DateTime?
+  issued_at DateTime?
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  @@map("certificates")
+}
+
+/*
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  SUPER_ADMIN
+  PROGRAM_MANAGER
+  REGIONAL_COORDINATOR
+  M_AND_E_OFFICER
+  DATA_VERIFIER
+  TRAINER
+  COACH
+  ENUMERATOR
+  ENTERPRISE_READ_ONLY
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+}
+
+enum ConsentStatus {
+  NOT_REQUESTED
+  REQUESTED
+  CONSENTED
+  REFUSED
+  WITHDRAWN
+}
+
+enum FormStatus {
+  DRAFT
+  SUBMITTED
+  QC_PENDING
+  QC_REJECTED
+  QC_APPROVED
+  VERIFIED
+}
+
+enum QcStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum EvidenceLinkType {
+  BASELINE_FORM
+  MIDLINE_FORM
+  ENDLINE_FORM
+  COACHING_VISIT
+}
+
+enum ReportType {
+  ENTERPRISE_BASELINE_PDF
+  ENTERPRISE_MIDLINE_PDF
+  ENTERPRISE_ENDLINE_PDF
+  COACHING_SUMMARY_PDF
+  CERTIFICATE_PDF
+}
+
+enum ReportStatus {
+  PENDING
+  GENERATED
+  FAILED
+}
+
+enum TriangulationStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  PASSED
+  FAILED
+}
+
+enum CertificateStatus {
+  LOCKED
+  UNLOCKED
+  ISSUED
+}
+
+enum FollowUpType {
+  IN_PERSON
+  PHONE
+}
+
+model User {
+  id String @id @default(uuid())
+
+  name   String
+  role   UserRole
+  phone  String?
+  email  String? @unique
+  region String?
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  @@map("users")
+}
+
+// Stored once per enterprise + baseline snapshot
+model Enterprise {
+  id String @id @default(uuid())
+
+  enterprise_name   String
+  owner_name        String
+  gender            Gender
+  age               Int?
+  sector            String
+  business_activity String?
+  location          String
+  contact_number    String?
+  date_coaching_started DateTime?
+
+  baseline_no_of_employees Int?
+  baseline_monthly_revenue Decimal? @db.Decimal(15, 2)
+
+  existing_record_keeping_system Boolean?
+  existing_record_keeping_system_description String?
+
+  key_business_challenges_identified String[] // top 2
+
+  consent_status ConsentStatus
+  loan_distribution_amount Decimal? @db.Decimal(15, 2)
+
+  region String?
+
+  // Audit fields
+  created_by String?
+  updated_by String?
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  created_by_user User? @relation("enterprise_created_by", fields: [created_by], references: [id])
+  updated_by_user User? @relation("enterprise_updated_by", fields: [updated_by], references: [id])
+
+  baseline_forms BaselineForm[]
+  midline_forms MidlineForm[]
+  endline_forms EndlineForm[]
+  iaps Iap[]
+  coaching_visits CoachingVisit[]
+  evidence Evidence[]
+  qc_checks QcCheck[]
+  reports_log ReportsLog[]
+  triangulation TriangulationChecklist?
+  certificates Certificate[]
+  phone_follow_ups PhoneFollowUp[]
+
+  @@index([region])
+  @@index([enterprise_name])
+  @@map("enterprises")
+}
+
+model BaselineForm {
+  id String @id @default(uuid())
+
+  enterprise_id String
+  enterprise Enterprise @relation(fields: [enterprise_id], references: [id])
+
+  // Audit fields
+  created_by String
+  updated_by String
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+  created_by_user User @relation("baseline_created_by", fields: [created_by], references: [id])
+  updated_by_user User @relation("baseline_updated_by", fields: [updated_by], references: [id])
+
+  status FormStatus @default(DRAFT)
+  verified_at DateTime?
+  verified_by String?
+  verified_by_user User? @relation("baseline_verified_by", fields: [verified_by], references: [id])
+
+  // Required for all forms
+  gps_timestamp DateTime?
+
+  // Baseline assessment JSON
+  responses Json
+
+  evidence Evidence[]
+  qc_checks QcCheck[]
+
+  @@index([enterprise_id])
+  @@map("baseline_forms")
+}
+
+model MidlineForm {
+  id String @id @default(uuid())
+
+  enterprise_id String
+  enterprise Enterprise @relation(fields: [enterprise_id], references: [id])
+
+  // Audit fields
+  created_by String
+  updated_by String
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+  created_by_user User @relation("midline_created_by", fields: [created_by], references: [id])
+  updated_by_user User @relation("midline_updated_by", fields: [updated_by], references: [id])
+
+  status FormStatus @default(DRAFT)
+  verified_at DateTime?
+  verified_by String?
+  verified_by_user User? @relation("midline_verified_by", fields: [verified_by], references: [id])
+
+  gps_timestamp DateTime?
+  responses Json
+
+  evidence Evidence[]
+  qc_checks QcCheck[]
+
+  @@index([enterprise_id])
+  @@map("midline_forms")
+}
+
+model EndlineForm {
+  id String @id @default(uuid())
+
+  enterprise_id String
+  enterprise Enterprise @relation(fields: [enterprise_id], references: [id])
+
+  // Audit fields
+  created_by String
+  updated_by String
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+  created_by_user User @relation("endline_created_by", fields: [created_by], references: [id])
+  updated_by_user User @relation("endline_updated_by", fields: [updated_by], references: [id])
+
+  status FormStatus @default(DRAFT)
+  verified_at DateTime?
+  verified_by String?
+  verified_by_user User? @relation("endline_verified_by", fields: [verified_by], references: [id])
+
+  gps_timestamp DateTime?
+  responses Json
+
+  evidence Evidence[]
+  qc_checks QcCheck[]
+
+  @@index([enterprise_id])
+  @@map("endline_forms")
+}
+
+model Iap {
+  id String @id @default(uuid())
+
+  enterprise_id String
+  enterprise Enterprise @relation(fields: [enterprise_id], references: [id])
+
+  // Audit fields
+  created_by String
+  updated_by String
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+  created_by_user User @relation("iap_created_by", fields: [created_by], references: [id])
+  updated_by_user User @relation("iap_updated_by", fields: [updated_by], references: [id])
+
+  status FormStatus @default(DRAFT)
+
+  // IAP tasks: [{ task, owner, deadline, status, evidence_url }]
+  tasks Json
+
+  signoff Boolean @default(false)
+  signed_by String?
+  signed_by_user User? @relation("iap_signed_by", fields: [signed_by], references: [id])
+  signed_at DateTime?
+
+  gps_timestamp DateTime?
+
+  @@index([enterprise_id])
+  @@map("iaps")
+}
+
+model CoachingVisit {
+  id String @id @default(uuid())
+
+  enterprise_id String
+  enterprise Enterprise @relation(fields: [enterprise_id], references: [id])
+
+  // Audit fields
+  coach_id String
+  created_by String
+  updated_by String
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  coach_user User @relation("coaching_visit_coach", fields: [coach_id], references: [id])
+  created_by_user User @relation("coaching_visit_created_by", fields: [created_by], references: [id])
+  updated_by_user User @relation("coaching_visit_updated_by", fields: [updated_by], references: [id])
+
+  session_no Int // 1..8
+
+  date DateTime
+  key_focus_area String
+  key_issues_identified String
+  actions_agreed String
+
+  // Array of URLs (at least 1 mandatory)
+  evidence_collected String[]
+
+  follow_up_date DateTime?
+  follow_up_type FollowUpType
+
+  // Mandatory JSON:
+  // {
+  //   "business_practice_improvements": {...},
+  //   "revenue_sales_growth": {...},
+  //   "record_keeping_improvement": {...},
+  //   "employment_creation": {...}
+  // }
+  measurable_results Json
+
+  gps_timestamp DateTime?
+
+  phone_follow_ups PhoneFollowUp[]
+  evidence Evidence[]
+  qc_checks QcCheck[]
+
+  @@index([enterprise_id, coach_id])
+  @@index([coach_id, date])
+  @@index([enterprise_id, date])
+  @@unique([enterprise_id, session_no])
+  @@map("coaching_visits")
+}
+
+model PhoneFollowUp {
+  id String @id @default(uuid())
+
+  coaching_visit_id String
+  coaching_visit CoachingVisit @relation(fields: [coaching_visit_id], references: [id])
+
+  // Audit fields
+  created_by String
+  updated_by String
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+  created_by_user User @relation("phone_followup_created_by", fields: [created_by], references: [id])
+  updated_by_user User @relation("phone_followup_updated_by", fields: [updated_by], references: [id])
+
+  // Phone follow-up log fields
+  date DateTime
+  purpose_of_call String
+  issue_addressed String
+  advice_given String
+  next_action String
+
+  gps_timestamp DateTime?
+
+  @@index([coaching_visit_id, date])
+  @@map("phone_follow_ups")
+}
+
+model Training {
+  id String @id @default(uuid())
+
+  scheduled_at DateTime
+  location String?
+  trainer_id String?
+  trainer_user User? @relation("training_trainer", fields: [trainer_id], references: [id])
+
+  // Audit fields
+  created_by String
+  updated_by String
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+  created_by_user User @relation("training_created_by", fields: [created_by], references: [id])
+  updated_by_user User @relation("training_updated_by", fields: [updated_by], references: [id])
+
+  gps_timestamp DateTime?
+
+  responses Json?
+
+  attendance Attendance[]
+
+  @@index([scheduled_at])
+  @@map("trainings")
+}
+
+model Attendance {
+  id String @id @default(uuid())
+
+  training_id String
+  training Training @relation(fields: [training_id], references: [id])
+
+  enterprise_id String
+  enterprise Enterprise @relation(fields: [enterprise_id], references: [id])
+
+  attended Boolean @default(false)
+
+  // exact 3-question feedback
+  feedback_q1 String?
+  feedback_q2 String?
+  feedback_q3 String?
+  feedback_notes String?
+
+  gps_timestamp DateTime?
+
+  // Audit fields
+  created_by String
+  updated_by String
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+  created_by_user User @relation("attendance_created_by", fields: [created_by], references: [id])
+  updated_by_user User @relation("attendance_updated_by", fields: [updated_by], references: [id])
+
+  @@index([training_id, enterprise_id])
+  @@map("attendance")
+}
+
+model Evidence {
+  id String @id @default(uuid())
+
+  link_type EvidenceLinkType
+
+  enterprise_id String?
+  enterprise Enterprise? @relation(fields: [enterprise_id], references: [id])
+
+  baseline_form_id String?
+  baseline_form BaselineForm? @relation(fields: [baseline_form_id], references: [id])
+
+  midline_form_id String?
+  midline_form MidlineForm? @relation(fields: [midline_form_id], references: [id])
+
+  endline_form_id String?
+  endline_form EndlineForm? @relation(fields: [endline_form_id], references: [id])
+
+  coaching_visit_id String?
+  coaching_visit CoachingVisit? @relation(fields: [coaching_visit_id], references: [id])
+
+  uploaded_by String?
+  uploaded_by_user User? @relation("evidence_uploaded_by", fields: [uploaded_by], references: [id])
+
+  url String
+  thumbnail_url String?
+  storage_provider String?
+  cloudinary_public_id String?
+  caption String?
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  @@index([enterprise_id])
+  @@map("evidence")
+}
+
+model QcCheck {
+  id String @id @default(uuid())
+
+  qc_status QcStatus @default(PENDING)
+  notes String?
+
+  // Audit fields
+  checked_by String?
+  checked_by_user User? @relation("qc_checked_by", fields: [checked_by], references: [id])
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  enterprise_id String?
+  enterprise Enterprise? @relation(fields: [enterprise_id], references: [id])
+
+  baseline_form_id String?
+  baseline_form BaselineForm? @relation(fields: [baseline_form_id], references: [id])
+
+  midline_form_id String?
+  midline_form MidlineForm? @relation(fields: [midline_form_id], references: [id])
+
+  endline_form_id String?
+  endline_form EndlineForm? @relation(fields: [endline_form_id], references: [id])
+
+  coaching_visit_id String?
+  coaching_visit CoachingVisit? @relation(fields: [coaching_visit_id], references: [id])
+
+  @@index([enterprise_id])
+  @@map("qc_checks")
+}
+
+model ReportsLog {
+  id String @id @default(uuid())
+
+  enterprise_id String?
+  enterprise Enterprise? @relation(fields: [enterprise_id], references: [id])
+
+  report_type ReportType
+  status ReportStatus @default(PENDING)
+
+  file_url String?
+  meta Json?
+
+  generated_by String?
+  generated_by_user User? @relation("reports_generated_by", fields: [generated_by], references: [id])
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  @@index([enterprise_id])
+  @@map("reports_log")
+}
+
+model TriangulationChecklist {
+  id String @id @default(uuid())
+
+  enterprise_id String @unique
+  enterprise Enterprise @relation(fields: [enterprise_id], references: [id])
+
+  status TriangulationStatus @default(NOT_STARTED)
+  checklist Json
+
+  verified_by String?
+  verified_by_user User? @relation("triangulation_verified_by", fields: [verified_by], references: [id])
+  verified_at DateTime?
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  certificates Certificate[]
+
+  @@map("triangulation_checklists")
+}
+
+model Certificate {
+  id String @id @default(uuid())
+
+  enterprise_id String @unique
+  enterprise Enterprise @relation(fields: [enterprise_id], references: [id])
+
+  triangulation_checklist_id String? @unique
+  triangulation TriangulationChecklist? @relation(fields: [triangulation_checklist_id], references: [id])
+
+  status CertificateStatus @default(LOCKED)
+  pdf_url String?
+  locked_reason String?
+
+  issued_by String?
+  issued_by_user User? @relation("certificate_issued_by", fields: [issued_by], references: [id])
+
+  unlocked_at DateTime?
+  issued_at DateTime?
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  @@map("certificates")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  SUPER_ADMIN
+  PROGRAM_MANAGER
+  REGIONAL_COORDINATOR
+  M_AND_E_OFFICER
+  DATA_VERIFIER
+  TRAINER
+  COACH
+  ENUMERATOR
+  ENTERPRISE_READ_ONLY
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+}
+
+enum ConsentStatus {
+  NOT_REQUESTED
+  REQUESTED
+  CONSENTED
+  REFUSED
+  WITHDRAWN
+}
+
+enum FormStatus {
+  DRAFT
+  SUBMITTED
+  QC_PENDING
+  QC_REJECTED
+  QC_APPROVED
+  VERIFIED
+}
+
+enum QcStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum EvidenceLinkType {
+  BASELINE_FORM
+  MIDLINE_FORM
+  ENDLINE_FORM
+  COACHING_VISIT
+}
+
+enum ReportType {
+  ENTERPRISE_BASELINE_PDF
+  ENTERPRISE_MIDLINE_PDF
+  ENTERPRISE_ENDLINE_PDF
+  COACHING_SUMMARY_PDF
+  CERTIFICATE_PDF
+}
+
+enum ReportStatus {
+  PENDING
+  GENERATED
+  FAILED
+}
+
+enum TriangulationStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  PASSED
+  FAILED
+}
+
+enum CertificateStatus {
+  LOCKED
+  UNLOCKED
+  ISSUED
+}
+
+enum FollowUpType {
+  IN_PERSON
+  PHONE
+}
+
+model User {
+  id String @id @default(uuid())
+
+  name  String
+  role  UserRole
+  phone String?
+  email String? @unique
+  region String?
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  // Relations
+  createdBaselineForms BaselineForm[] @relation("baseline_created_by")
+  createdMidlineForms  MidlineForm[]  @relation("midline_created_by")
+  createdEndlineForms  EndlineForm[]  @relation("endline_created_by")
+  createdIaps          Iap[]          @relation("iap_created_by")
+  coachedCoachingVisits CoachingVisit[] @relation("coaching_visit_coach")
+  createdCoachingVisits CoachingVisit[] @relation("coaching_visit_created_by")
+  createdPhoneFollowUps PhoneFollowUp[] @relation("phone_followup_created_by")
+
+  checkedQcChecks QcCheck[] @relation("qc_checked_by")
+  generatedReports ReportsLog[] @relation("reports_generated_by")
+  uploadedEvidence Evidence[] @relation("evidence_uploaded_by")
+
+  verifiedTriangulations TriangulationChecklist[] @relation("triangulation_verified_by")
+  issuedCertificates Certificate[] @relation("certificate_issued_by")
+
+  trainingsCreated Training[] @relation("training_created_by")
+  attendanceCreated Attendance[] @relation("attendance_created_by")
+
+  @@map("users")
+}
+
+model Enterprise {
+  id String @id @default(uuid())
+
+  enterprise_name      String
+  owner_name           String
+  gender               Gender
+  age                  Int?
+  sector               String
+  business_activity    String?
+  location             String
+  contact_number       String?
+  date_coaching_started DateTime?
+
+  baseline_no_of_employees Int?
+  baseline_monthly_revenue Decimal? @db.Decimal(15, 2)
+
+  existing_record_keeping_system Boolean?
+  existing_record_keeping_system_description String?
+
+  key_business_challenges_identified String[] // top 2 challenges (as strings)
+
+  consent_status ConsentStatus
+  loan_distribution_amount Decimal? @db.Decimal(15, 2)
+
+  region String?
+
+  // Audit fields (program + offline sync)
+  created_by_id String?
+  created_by    User? @relation(fields: [created_by_id], references: [id])
+  updated_by_id String?
+  updated_by    User? @relation(fields: [updated_by_id], references: [id])
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  // Relations
+  baseline_forms BaselineForm[]
+  midline_forms MidlineForm[]
+  endline_forms EndlineForm[]
+  iaps Iap[]
+  coaching_visits CoachingVisit[]
+  evidence Evidence[]
+  qc_checks QcCheck[]
+  reports_logs ReportsLog[]
+  triangulation TriangulationChecklist?
+  certificates Certificate[]
+  phone_follow_ups PhoneFollowUp[]
+
+  @@index([region])
+  @@index([enterprise_name])
+  @@map("enterprises")
+}
+
+model BaselineForm {
+  id String @id @default(uuid())
+
+  enterprise_id String
+  enterprise Enterprise @relation(fields: [enterprise_id], references: [id])
+
+  created_by_id String
+  created_by    User @relation("baseline_created_by", fields: [created_by_id], references: [id])
+
+  status FormStatus @default(DRAFT)
+  verified_at DateTime?
+  verified_by_id String?
+  verified_by    User? @relation("baseline_verified_by", fields: [verified_by_id], references: [id])
+
+  gps_timestamp DateTime?
+
+  // Stored as JSON from the baseline assessment form.
+  responses Json
+
+  // Audit fields
+  created_by_client_id String?
+  client_created_at DateTime?
+  client_updated_at DateTime?
+
+  created_by_audit_id String?
+  updated_by_audit_id String?
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  evidence Evidence[]
+  qc_checks QcCheck[]
+
+  @@index([enterprise_id])
+  @@map("baseline_forms")
+}
+
+model MidlineForm {
+  id String @id @default(uuid())
+
+  enterprise_id String
+  enterprise Enterprise @relation(fields: [enterprise_id], references: [id])
+
+  created_by_id String
+  created_by    User @relation("midline_created_by", fields: [created_by_id], references: [id])
+
+  status FormStatus @default(DRAFT)
+  verified_at DateTime?
+  verified_by_id String?
+  verified_by    User? @relation("midline_verified_by", fields: [verified_by_id], references: [id])
+
+  gps_timestamp DateTime?
+
+  responses Json
+
+  client_created_at DateTime?
+  client_updated_at DateTime?
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  evidence Evidence[]
+  qc_checks QcCheck[]
+
+  @@index([enterprise_id])
+  @@map("midline_forms")
+}
+
+model EndlineForm {
+  id String @id @default(uuid())
+
+  enterprise_id String
+  enterprise Enterprise @relation(fields: [enterprise_id], references: [id])
+
+  created_by_id String
+  created_by    User @relation("endline_created_by", fields: [created_by_id], references: [id])
+
+  status FormStatus @default(DRAFT)
+  verified_at DateTime?
+  verified_by_id String?
+  verified_by    User? @relation("endline_verified_by", fields: [verified_by_id], references: [id])
+
+  gps_timestamp DateTime?
+
+  responses Json
+
+  client_created_at DateTime?
+  client_updated_at DateTime?
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  evidence Evidence[]
+  qc_checks QcCheck[]
+
+  @@index([enterprise_id])
+  @@map("endline_forms")
+}
+
+model Iap {
+  id String @id @default(uuid())
+
+  enterprise_id String
+  enterprise Enterprise @relation(fields: [enterprise_id], references: [id])
+
+  created_by_id String
+  created_by    User @relation("iap_created_by", fields: [created_by_id], references: [id])
+
+  coach_id String?
+  coach    User? @relation("iap_signed_by", fields: [coach_id], references: [id])
+
+  status FormStatus @default(DRAFT)
+
+  tasks Json
+
+  signoff Boolean @default(false)
+  signed_by_id String?
+  signed_by    User? @relation("iap_signoff_by", fields: [signed_by_id], references: [id])
+  signed_at DateTime?
+
+  gps_timestamp DateTime?
+
+  client_created_at DateTime?
+  client_updated_at DateTime?
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  @@index([enterprise_id])
+  @@map("iaps")
+}
+
+model CoachingVisit {
+  id String @id @default(uuid())
+
+  enterprise_id String
+  enterprise Enterprise @relation(fields: [enterprise_id], references: [id])
+
+  coach_id String
+  coach    User @relation("coaching_visit_coach", fields: [coach_id], references: [id])
+
+  created_by_id String?
+  created_by    User? @relation("coaching_visit_created_by", fields: [created_by_id], references: [id])
+
+  session_no Int // 1..8
+
+  date DateTime
+  key_focus_area String
+  key_issues_identified String
+  actions_agreed String
+
+  // mandatory evidence photo/doc (at least 1)
+  evidence_collected String[]
+
+  follow_up_date DateTime?
+  follow_up_type FollowUpType
+
+  // Mandatory JSON object (stored exactly with keys you provided)
+  measurable_results Json
+
+  gps_timestamp DateTime?
+
+  client_created_at DateTime?
+  client_updated_at DateTime?
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  // Relations
+  phone_follow_ups PhoneFollowUp[]
+  evidence Evidence[]
+  qc_checks QcCheck[]
+
+  @@index([enterprise_id, coach_id])
+  @@index([coach_id, date])
+  @@index([enterprise_id, date])
+  @@unique([enterprise_id, session_no])
+  @@map("coaching_visits")
+}
+
+model PhoneFollowUp {
+  id String @id @default(uuid())
+
+  coaching_visit_id String
+  coaching_visit CoachingVisit @relation(fields: [coaching_visit_id], references: [id])
+
+  date DateTime
+
+  purpose_of_call String
+  issue_addressed String
+  advice_given String
+  next_action String
+
+  gps_timestamp DateTime?
+
+  created_by_id String?
+  created_by    User? @relation("phone_followup_created_by", fields: [created_by_id], references: [id])
+
+  client_created_at DateTime?
+  client_updated_at DateTime?
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  @@index([coaching_visit_id, date])
+  @@map("phone_follow_ups")
+}
+
+model Training {
+  id String @id @default(uuid())
+
+  scheduled_at DateTime
+  location String?
+
+  trainer_id String?
+  trainer    User? @relation("training_trainer", fields: [trainer_id], references: [id])
+
+  created_by_id String?
+  created_by    User? @relation("training_created_by", fields: [created_by_id], references: [id])
+
+  gps_timestamp DateTime?
+
+  responses Json?
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  attendance Attendance[]
+
+  @@index([scheduled_at])
+  @@map("trainings")
+}
+
+model Attendance {
+  id String @id @default(uuid())
+
+  training_id String
+  training Training @relation(fields: [training_id], references: [id])
+
+  enterprise_id String
+  enterprise Enterprise @relation(fields: [enterprise_id], references: [id])
+
+  attended Boolean @default(false)
+
+  // exact 3-question feedback fields
+  feedback_q1 String?
+  feedback_q2 String?
+  feedback_q3 String?
+
+  feedback_notes String?
+  gps_timestamp DateTime?
+
+  created_by_id String?
+  created_by    User? @relation("attendance_created_by", fields: [created_by_id], references: [id])
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  @@index([training_id, enterprise_id])
+  @@map("attendance")
+}
+
+model Evidence {
+  id String @id @default(uuid())
+
+  link_type EvidenceLinkType
+
+  enterprise_id String?
+  enterprise Enterprise? @relation(fields: [enterprise_id], references: [id])
+
+  baseline_form_id String?
+  baseline_form BaselineForm? @relation(fields: [baseline_form_id], references: [id])
+
+  midline_form_id String?
+  midline_form MidlineForm? @relation(fields: [midline_form_id], references: [id])
+
+  endline_form_id String?
+  endline_form EndlineForm? @relation(fields: [endline_form_id], references: [id])
+
+  coaching_visit_id String?
+  coaching_visit CoachingVisit? @relation(fields: [coaching_visit_id], references: [id])
+
+  uploaded_by_id String?
+  uploaded_by    User? @relation("evidence_uploaded_by", fields: [uploaded_by_id], references: [id])
+
+  url String
+  thumbnail_url String?
+  storage_provider String?
+  cloudinary_public_id String?
+
+  caption String?
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  @@index([enterprise_id])
+  @@map("evidence")
+}
+
+model QcCheck {
+  id String @id @default(uuid())
+
+  qc_status QcStatus @default(PENDING)
+  notes String?
+
+  checked_by_id String?
+  checked_by    User? @relation("qc_checked_by", fields: [checked_by_id], references: [id])
+
+  enterprise_id String?
+  enterprise    Enterprise? @relation(fields: [enterprise_id], references: [id])
+
+  baseline_form_id String?
+  baseline_form BaselineForm? @relation(fields: [baseline_form_id], references: [id])
+
+  midline_form_id String?
+  midline_form MidlineForm? @relation(fields: [midline_form_id], references: [id])
+
+  endline_form_id String?
+  endline_form EndlineForm? @relation(fields: [endline_form_id], references: [id])
+
+  coaching_visit_id String?
+  coaching_visit CoachingVisit? @relation(fields: [coaching_visit_id], references: [id])
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  @@index([enterprise_id])
+  @@map("qc_checks")
+}
+
+model ReportsLog {
+  id String @id @default(uuid())
+
+  enterprise_id String?
+  enterprise    Enterprise? @relation(fields: [enterprise_id], references: [id])
+
+  report_type ReportType
+  status ReportStatus @default(PENDING)
+
+  file_url String?
+  meta Json?
+
+  generated_by_id String?
+  generated_by    User? @relation("reports_generated_by", fields: [generated_by_id], references: [id])
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  @@index([enterprise_id])
+  @@map("reports_log")
+}
+
+model TriangulationChecklist {
+  id String @id @default(uuid())
+
+  enterprise_id String @unique
+  enterprise    Enterprise @relation(fields: [enterprise_id], references: [id])
+
+  status TriangulationStatus @default(NOT_STARTED)
+
+  checklist Json
+
+  verified_by_id String?
+  verified_by    User? @relation("triangulation_verified_by", fields: [verified_by_id], references: [id])
+  verified_at DateTime?
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  certificates Certificate[]
+
+  @@map("triangulation_checklists")
+}
+
+model Certificate {
+  id String @id @default(uuid())
+
+  enterprise_id String @unique
+  enterprise    Enterprise @relation(fields: [enterprise_id], references: [id])
+
+  triangulation_checklist_id String? @unique
+  triangulation TriangulationChecklist? @relation(fields: [triangulation_checklist_id], references: [id])
+
+  status CertificateStatus @default(LOCKED)
+  pdf_url String?
+  locked_reason String?
+
+  issued_by_id String?
+  issued_by    User? @relation("certificate_issued_by", fields: [issued_by_id], references: [id])
+
+  unlocked_at DateTime?
+  issued_at DateTime?
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  @@map("certificates")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  SUPER_ADMIN
+  PROGRAM_MANAGER
+  REGIONAL_COORDINATOR
+  M_AND_E_OFFICER
+  DATA_VERIFIER
+  TRAINER
+  COACH
+  ENUMERATOR
+  ENTERPRISE_READ_ONLY
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+  UNKNOWN
+}
+
+enum ConsentStatus {
+  NOT_REQUESTED
+  REQUESTED
+  CONSENTED
+  REFUSED
+  WITHDRAWN
+}
+
+enum FormStatus {
+  DRAFT
+  SUBMITTED
+  QC_PENDING
+  QC_REJECTED
+  QC_APPROVED
+  VERIFIED
+}
+
+enum QcStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum EvidenceLinkType {
+  BASELINE_FORM
+  MIDLINE_FORM
+  ENDLINE_FORM
+  COACHING_VISIT
+}
+
+enum ReportType {
+  ENTERPRISE_BASELINE_PDF
+  ENTERPRISE_MIDLINE_PDF
+  ENTERPRISE_ENDLINE_PDF
+  COACHING_SUMMARY_PDF
+  CERTIFICATE_PDF
+}
+
+enum ReportStatus {
+  PENDING
+  GENERATED
+  FAILED
+}
+
+enum TriangulationStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  PASSED
+  FAILED
+}
+
+enum CertificateStatus {
+  LOCKED
+  UNLOCKED
+  ISSUED
+}
+
+enum PhoneFollowUpOutcome {
+  SUCCESS
+  RESCHEDULED
+  NO_RESPONSE
+  OTHER
+}
+
+model User {
+  id        String   @id @default(uuid())
+  name      String
+  role      UserRole
+  phone     String?
+  email     String?  @unique
+  region    String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations (audit/tracking)
+  createdBaselineForms      BaselineForm[]       @relation("baseline_created_by")
+  createdMidlineForms       MidlineForm[]        @relation("midline_created_by")
+  createdEndlineForms       EndlineForm[]        @relation("endline_created_by")
+  createdCoachingVisits     CoachingVisit[]      @relation("coaching_created_by")
+  createdTrainings          Training[]           @relation("training_created_by")
+  createdIaps               Iap[]                @relation("iap_created_by")
+  signedIaps                Iap[]                @relation("iap_signed_by")
+
+  baselineFormsReviewed    BaselineForm[]      @relation("baseline_reviewed_by")
+  midlineFormsReviewed     MidlineForm[]       @relation("midline_reviewed_by")
+  endlineFormsReviewed     EndlineForm[]       @relation("endline_reviewed_by")
+
+  qcChecksReviewed          QcCheck[]           @relation("qc_checked_by")
+  reportsGenerated          ReportsLog[]        @relation("reports_generated_by")
+  evidenceUploaded          Evidence[]          @relation("evidence_uploaded_by")
+
+  triangulationsVerifiedBy  TriangulationChecklist[] @relation("triangulation_verified_by")
+  certificatesIssuedBy      Certificate[]      @relation("certificate_issued_by")
+  phoneFollowUpsLogged      PhoneFollowUp[]    @relation("phone_followed_by")
+
+  trainingsAsTrainer        Training[]         @relation("training_trainer")
+
+  @@map("users")
+}
+
+model Enterprise {
+  id String @id @default(uuid())
+
+  name               String
+  owner              String
+  gender             Gender
+  age                Int?
+  sector             String
+  location          String
+  phone              String?
+  baseline_employees Int?
+  baseline_revenue   Decimal? @db.Decimal(15, 2)
+  record_keeping     Boolean?
+  challenges         String?
+  consent_status     ConsentStatus
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  baseline_forms    BaselineForm[]
+  midline_forms     MidlineForm[]
+  endline_forms     EndlineForm[]
+  iaps              Iap[]
+  coaching_visits   CoachingVisit[]
+  trainings         Training[]
+  evidence          Evidence[]
+  qc_checks         QcCheck[]
+  reports_logs      ReportsLog[]
+  triangulation     TriangulationChecklist?
+  certificates       Certificate[]
+  phone_follow_ups  PhoneFollowUp[]
+
+  @@index([name])
+  @@map("enterprises")
+}
+
+model BaselineForm {
+  id String @id @default(uuid())
+
+  enterprise_id String
+  enterprise    Enterprise @relation(fields: [enterprise_id], references: [id])
+
+  created_by_id String
+  createdBy     User    @relation("baseline_created_by", fields: [created_by_id], references: [id])
+
+  // QC verification fields
+  status         FormStatus @default(DRAFT)
+  reviewed_by_id String?
+  reviewedBy     User?      @relation("baseline_reviewed_by", fields: [reviewed_by_id], references: [id])
+  verified_at    DateTime?
+
+  // Offline-friendly form metadata
+  completed_at   DateTime?
+  gps_lat        Float?
+  gps_lng        Float?
+  responses      Json
+  client_created_at DateTime?
+  client_updated_at DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  evidence Evidence[]
+  qc_checks QcCheck[]
+
+  @@index([enterprise_id])
+  @@map("baseline_forms")
+}
+
+model MidlineForm {
+  id String @id @default(uuid())
+
+  enterprise_id String
+  enterprise    Enterprise @relation(fields: [enterprise_id], references: [id])
+
+  created_by_id String
+  createdBy     User    @relation("midline_created_by", fields: [created_by_id], references: [id])
+
+  status         FormStatus @default(DRAFT)
+  reviewed_by_id String?
+  reviewedBy     User?      @relation("midline_reviewed_by", fields: [reviewed_by_id], references: [id])
+  verified_at    DateTime?
+
+  completed_at   DateTime?
+  gps_lat        Float?
+  gps_lng        Float?
+  responses      Json
+  client_created_at DateTime?
+  client_updated_at DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  evidence Evidence[]
+  qc_checks QcCheck[]
+
+  @@index([enterprise_id])
+  @@map("midline_forms")
+}
+
+model EndlineForm {
+  id String @id @default(uuid())
+
+  enterprise_id String
+  enterprise    Enterprise @relation(fields: [enterprise_id], references: [id])
+
+  created_by_id String
+  createdBy     User    @relation("endline_created_by", fields: [created_by_id], references: [id])
+
+  status         FormStatus @default(DRAFT)
+  reviewed_by_id String?
+  reviewedBy     User?      @relation("endline_reviewed_by", fields: [reviewed_by_id], references: [id])
+  verified_at    DateTime?
+
+  completed_at   DateTime?
+  gps_lat        Float?
+  gps_lng        Float?
+  responses      Json
+  client_created_at DateTime?
+  client_updated_at DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  evidence Evidence[]
+  qc_checks QcCheck[]
+
+  @@index([enterprise_id])
+  @@map("endline_forms")
+}
+
+model Iap {
+  id String @id @default(uuid())
+
+  enterprise_id String
+  enterprise    Enterprise @relation(fields: [enterprise_id], references: [id])
+
+  created_by_id String
+  createdBy     User    @relation("iap_created_by", fields: [created_by_id], references: [id])
+
+  // Coach sign-off (digital sign-off)
+  tasks         Json
+  signoff        Boolean @default(false)
+  signed_by_id  String?
+  signedBy      User?   @relation("iap_signed_by", fields: [signed_by_id], references: [id])
+  signed_at     DateTime?
+
+  status         FormStatus @default(DRAFT)
+
+  client_created_at DateTime?
+  client_updated_at DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([enterprise_id])
+  @@map("iaps")
+}
+
+model CoachingVisit {
+  id String @id @default(uuid())
+
+  enterprise_id String
+  enterprise    Enterprise @relation(fields: [enterprise_id], references: [id])
+
+  created_by_id String
+  createdBy     User @relation("coaching_created_by", fields: [created_by_id], references: [id])
+
+  // Exact Excel columns (Business Coaching & Follow-up tool)
+  date              DateTime
+  focus_area        String
+  issues            String
+  actions_agreed    String
+  evidence_urls     String[] // mandatory photo(s) URL(s)
+  follow_up_date    DateTime?
+
+  // Measurable results are stored exactly as template checkbox + numeric fields.
+  measurable_results Json
+  revenue_current    Decimal? @db.Decimal(15, 2)
+  employment_new     Int?
+
+  client_created_at DateTime?
+  client_updated_at DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  evidence Evidence[]
+  phone_follow_ups PhoneFollowUp[]
+  qc_checks QcCheck[]
+
+  @@index([enterprise_id, date])
+  @@map("coaching_visits")
+}
+
+model Training {
+  id String @id @default(uuid())
+
+  enterprise_id String?
+  enterprise    Enterprise? @relation(fields: [enterprise_id], references: [id])
+
+  created_by_id String?
+  createdBy     User? @relation("training_created_by", fields: [created_by_id], references: [id])
+
+  trainer_id String?
+  trainer    User? @relation("training_trainer", fields: [trainer_id], references: [id])
+
+  scheduled_at DateTime
+  location      String?
+
+  // Stores training plan fields exactly as defined in the schedule template
+  responses     Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  attendance Attendance[]
+
+  @@index([scheduled_at])
+  @@map("trainings")
+}
+
+model Attendance {
+  id String @id @default(uuid())
+
+  training_id String
+  training    Training @relation(fields: [training_id], references: [id])
+
+  enterprise_id String
+  enterprise    Enterprise @relation(fields: [enterprise_id], references: [id])
+
+  attended     Boolean @default(false)
+
+  // Exact 3-question feedback stored explicitly.
+  feedback_q1  String?
+  feedback_q2  String?
+  feedback_q3  String?
+
+  // Extra notes captured from the UI (optional)
+  feedback_notes String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([training_id, enterprise_id])
+  @@map("attendance")
+}
+
+model Evidence {
+  id String @id @default(uuid())
+
+  enterprise_id String?
+  enterprise    Enterprise? @relation(fields: [enterprise_id], references: [id])
+
+  uploaded_by_id String?
+  uploadedBy    User? @relation("evidence_uploaded_by", fields: [uploaded_by_id], references: [id])
+
+  link_type EvidenceLinkType
+
+  baseline_form_id String?
+  baselineForm     BaselineForm? @relation(fields: [baseline_form_id], references: [id])
+
+  midline_form_id String?
+  midlineForm     MidlineForm? @relation(fields: [midline_form_id], references: [id])
+
+  endline_form_id String?
+  endlineForm     EndlineForm? @relation(fields: [endline_form_id], references: [id])
+
+  coaching_visit_id String?
+  coachingVisit    CoachingVisit? @relation(fields: [coaching_visit_id], references: [id])
+
+  url            String
+  thumbnail_url String?
+  storage_provider String?
+  cloudinary_public_id String?
+
+  gps_lat  Float?
+  gps_lng  Float?
+  caption   String?
+
+  client_created_at DateTime?
+  client_updated_at DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([enterprise_id])
+  @@map("evidence")
+}
+
+model QcCheck {
+  id String @id @default(uuid())
+
+  qc_status QcStatus @default(PENDING)
+  notes     String?
+
+  checked_by_id String?
+  checkedBy     User? @relation("qc_checked_by", fields: [checked_by_id], references: [id])
+
+  baseline_form_id String?
+  baselineForm BaselineForm? @relation(fields: [baseline_form_id], references: [id])
+
+  midline_form_id String?
+  midlineForm MidlineForm? @relation(fields: [midline_form_id], references: [id])
+
+  endline_form_id String?
+  endlineForm EndlineForm? @relation(fields: [endline_form_id], references: [id])
+
+  coaching_visit_id String?
+  coachingVisit CoachingVisit? @relation(fields: [coaching_visit_id], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  enterprise_id String?
+  enterprise Enterprise? @relation(fields: [enterprise_id], references: [id])
+
+  client_created_at DateTime?
+  client_updated_at DateTime?
+
+  @@index([enterprise_id])
+  @@map("qc_checks")
+}
+
+model ReportsLog {
+  id String @id @default(uuid())
+
+  enterprise_id String?
+  enterprise    Enterprise? @relation(fields: [enterprise_id], references: [id])
+
+  report_type ReportType
+  status      ReportStatus @default(PENDING)
+  file_url    String?
+  meta         Json?
+
+  generated_by_id String?
+  generatedBy     User? @relation("reports_generated_by", fields: [generated_by_id], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  client_created_at DateTime?
+  client_updated_at DateTime?
+
+  @@index([enterprise_id])
+  @@map("reports_log")
+}
+
+model TriangulationChecklist {
+  id String @id @default(uuid())
+
+  enterprise_id String @unique
+  enterprise    Enterprise @relation(fields: [enterprise_id], references: [id])
+
+  status        TriangulationStatus @default(NOT_STARTED)
+  checklist     Json
+
+  verified_by_id String?
+  verifiedBy     User? @relation("triangulation_verified_by", fields: [verified_by_id], references: [id])
+  verified_at    DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  certificates Certificate[]
+
+  @@map("triangulation_checklists")
+}
+
+model Certificate {
+  id String @id @default(uuid())
+
+  enterprise_id String @unique
+  enterprise    Enterprise @relation(fields: [enterprise_id], references: [id])
+
+  triangulation_checklist_id String? @unique
+  triangulation TriangulationChecklist? @relation(fields: [triangulation_checklist_id], references: [id])
+
+  status         CertificateStatus @default(LOCKED)
+  pdf_url        String?
+  locked_reason  String?
+
+  issued_by_id String?
+  issuedBy     User? @relation("certificate_issued_by", fields: [issued_by_id], references: [id])
+  unlocked_at   DateTime?
+  issued_at     DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("certificates")
+}
+
+model PhoneFollowUp {
+  id String @id @default(uuid())
+
+  enterprise_id String
+  enterprise    Enterprise @relation(fields: [enterprise_id], references: [id])
+
+  coached_by_id String
+  coachedBy     User @relation("phone_followed_by", fields: [coached_by_id], references: [id])
+
+  coaching_visit_id String?
+  coachingVisit    CoachingVisit? @relation(fields: [coaching_visit_id], references: [id])
+
+  followed_up_at DateTime
+  phone_number   String?
+
+  outcome   PhoneFollowUpOutcome?
+  notes     String?
+
+  // Stores exact Excel template columns for phone follow-up log.
+  responses Json
+
+  client_created_at DateTime?
+  client_updated_at DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([enterprise_id, followed_up_at])
+  @@map("phone_follow_ups")
+}
+
+*/
+
