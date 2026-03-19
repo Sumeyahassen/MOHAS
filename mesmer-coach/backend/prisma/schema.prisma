@@ -1,0 +1,104 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id          Int      @id @default(autoincrement())
+  name        String
+  email       String   @unique
+  phone       String   @unique
+  password    String
+  role        Role
+  region      String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Enterprise {
+  id                       Int      @id @default(autoincrement())
+  enterpriseName           String
+  ownerName                String
+  gender                   String
+  age                      Int?
+  sector                   String
+  businessActivity         String?
+  location                 String
+  contactNumber            String
+  dateCoachingStarted      DateTime?
+  baselineEmployees        Int?
+  baselineMonthlyRevenue   Float?
+  existingRecordKeeping    String
+  keyChallenges            String?
+  consentStatus            String   @default("Pending")
+  region                   String
+  coachId                  Int?
+  createdAt                DateTime @default(now())
+
+  iaps             Iap[]
+  coachingVisits   CoachingVisit[]
+  assessments      Assessment[]
+}
+
+model Assessment {
+  id               Int      @id @default(autoincrement())
+  enterpriseId     Int
+  type             String   // baseline, midline, endline
+  responses        Json
+  createdBy        Int
+  createdAt        DateTime @default(now())
+
+  enterprise       Enterprise @relation(fields: [enterpriseId], references: [id])
+}
+
+model Iap {
+  id           Int      @id @default(autoincrement())
+  enterpriseId Int
+  tasks        Json
+  signedByCoach Boolean @default(false)
+  signedByOwner Boolean @default(false)
+  createdAt    DateTime @default(now())
+
+  enterprise   Enterprise @relation(fields: [enterpriseId], references: [id])
+}
+
+model CoachingVisit {
+  id                    Int      @id @default(autoincrement())
+  enterpriseId          Int
+  sessionNo             Int
+  date                  DateTime
+  keyFocusArea          String
+  keyIssuesIdentified   String
+  actionsAgreed         String
+  evidenceUrls          String[]
+  followUpDate          DateTime?
+  followUpType          String
+  measurableResults     Json
+  createdBy             Int
+  createdAt             DateTime @default(now())
+
+  enterprise            Enterprise @relation(fields: [enterpriseId], references: [id])
+}
+
+model TrainingSession {
+  id            Int      @id @default(autoincrement())
+  date          DateTime
+  moduleName    String
+  trainerId     Int
+  attendance    Json
+}
+
+enum Role {
+  Admin
+  ProgramManager
+  RegionalCoordinator
+  M_E
+  Coach
+  Trainer
+  Enumerator
+  Enterprise
+}
