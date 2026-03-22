@@ -18,13 +18,11 @@ app.use('/api/coaching-visits', require('./routes/coaching-visits'));
 
 // Test route
 app.get('/', (req, res) => {
-  res.json({ 
-    message: "✅ MESMER Coach Backend is RUNNING with Prisma + Auth!",
-    status: "Connected"
-  });
+  res.json({ message: "✅ MESMER Coach Backend is RUNNING and ready for phone!" });
 });
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
-  console.log(`🚀 MESMER Coach Backend running on http://localhost:${PORT}`);
+app.listen(PORT, '0.0.0.0', () => {     // ←←← THIS LINE IS THE FIX
+  console.log(`🚀 Server running on http://0.0.0.0:${PORT}`);
+  console.log(`📱 Use this IP in Flutter: http://192.168.43.231:${PORT}`);
 });
