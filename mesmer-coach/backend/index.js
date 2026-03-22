@@ -9,18 +9,20 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+// Auth route
+app.use('/api/auth', require('./routes/auth'));
+
+// Protected routes
+app.use('/api/enterprises', require('./routes/enterprises'));
+app.use('/api/coaching-visits', require('./routes/coaching-visits'));
+
 // Test route
 app.get('/', (req, res) => {
   res.json({ 
-    message:"MESMER Coach Backend is RUNNING with Prisma!",
-    status: "Connected to PostgreSQL",
-    database: "mesmer_coach"
+    message: "✅ MESMER Coach Backend is RUNNING with Prisma + Auth!",
+    status: "Connected"
   });
 });
-
-// === ROUTES WILL BE ADDED HERE ===
-app.use('/api/enterprises', require('./routes/enterprises'));
-app.use('/api/coaching-visits', require('./routes/coaching-visits'));
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
