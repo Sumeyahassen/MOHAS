@@ -80,7 +80,6 @@ model CoachingVisit {
   measurableResults     Json
   createdBy             Int
   createdAt             DateTime @default(now())
-
   enterprise            Enterprise @relation(fields: [enterpriseId], references: [id])
 }
 
