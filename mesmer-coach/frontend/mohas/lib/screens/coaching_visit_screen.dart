@@ -3,9 +3,11 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
+import '../services/offline_sync.dart';
 
 class CoachingVisitScreen extends StatefulWidget {
-  final int enterpriseId;                    // ←←← This fixes the error
+  final int enterpriseId;
   const CoachingVisitScreen({super.key, required this.enterpriseId});
 
   @override
@@ -46,15 +48,13 @@ class _CoachingVisitScreenState extends State<CoachingVisitScreen> {
         _issuesController.text.trim().isEmpty ||
         _actionsController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('❌ Please fill all required fields'), backgroundColor: Colors.red),
+        const SnackBar(content: Text('❌ Please fill Key Focus, Issues and Actions'), backgroundColor: Colors.red),
       );
       return;
     }
 
-    final token = await storage.read(key: 'token');
-
     final body = {
-      "enterpriseId": widget.enterpriseId,        // ← Now uses the correct ID
+      "enterpriseId": widget.enterpriseId,
       "sessionNo": 1,
       "keyFocusArea": _focusController.text,
       "keyIssuesIdentified": _issuesController.text,
@@ -71,24 +71,35 @@ class _CoachingVisitScreenState extends State<CoachingVisitScreen> {
       }
     };
 
-    final response = await http.post(
-      Uri.parse('http://192.168.43.231:5000/api/coaching-visits'),   
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer $token'
-      },
-      body: jsonEncode(body),
-    );
+    final connectivity = await Connectivity().checkConnectivity();
 
-    if (response.statusCode == 200) {
+    if (connectivity == ConnectivityResult.none) {
+      await OfflineSync.saveOffline(body);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('✅ Visit Saved Successfully!'), backgroundColor: Colors.green),
+        const SnackBar(content: Text('✅ Saved OFFLINE - will sync later'), backgroundColor: Colors.orange),
       );
       Navigator.pop(context);
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: ${response.body}')),
+      final token = await storage.read(key: 'token');
+      final response = await http.post(
+        Uri.parse('http://192.168.43.231:5000/api/coaching-visits'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token'
+        },
+        body: jsonEncode(body),
       );
+
+      if (response.statusCode == 200) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('✅ Visit Saved Successfully!'), backgroundColor: Colors.green),
+        );
+        Navigator.pop(context);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: ${response.body}')),
+        );
+      }
     }
   }
 
