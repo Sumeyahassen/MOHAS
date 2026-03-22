@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'coaching_visit_screen.dart';
+import 'enterprise_list_screen.dart';
+import 'package:fl_chart/fl_chart.dart';
 
 class DashboardScreen extends StatelessWidget {
   const DashboardScreen({super.key});
@@ -9,26 +10,34 @@ class DashboardScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(title: const Text('MESMER Coach Dashboard')),
       body: Padding(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-            const SizedBox(height: 30),
-            const Icon(Icons.person, size: 90, color: Colors.blue),
-            const Text('Welcome Coach!', style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 50),
-            ElevatedButton.icon(
-              icon: const Icon(Icons.add, size: 30),
-              label: const Text('New Coaching Visit', style: TextStyle(fontSize: 20)),
-              style: ElevatedButton.styleFrom(
-                minimumSize: const Size(double.infinity, 60),
-                backgroundColor: Colors.blue,
+            const Text('Progress Overview', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 20),
+
+            // Simple Revenue Chart
+            SizedBox(
+              height: 180,
+              child: BarChart(
+                BarChartData(
+                  barGroups: [
+                    BarChartGroupData(x: 1, barRods: [BarChartRodData(toY: 15000, color: Colors.blue)]),
+                    BarChartGroupData(x: 2, barRods: [BarChartRodData(toY: 18000, color: Colors.green)]),
+                  ],
+                ),
               ),
+            ),
+
+            const SizedBox(height: 30),
+            ElevatedButton.icon(
+              icon: const Icon(Icons.list, size: 30),
+              label: const Text('Select Enterprise & Coach', style: TextStyle(fontSize: 18)),
+              style: ElevatedButton.styleFrom(minimumSize: const Size(double.infinity, 60)),
               onPressed: () {
-                Navigator.push(context, MaterialPageRoute(builder: (_) => const CoachingVisitScreen()));
+                Navigator.push(context, MaterialPageRoute(builder: (_) => const EnterpriseListScreen()));
               },
             ),
-            const SizedBox(height: 20),
-            const Text('Your enterprises and progress will appear here soon'),
           ],
         ),
       ),

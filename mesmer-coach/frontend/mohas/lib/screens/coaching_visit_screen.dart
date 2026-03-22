@@ -5,7 +5,9 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:image_picker/image_picker.dart';
 
 class CoachingVisitScreen extends StatefulWidget {
-  const CoachingVisitScreen({super.key});
+  final int enterpriseId;                    // ←←← This fixes the error
+  const CoachingVisitScreen({super.key, required this.enterpriseId});
+
   @override
   State<CoachingVisitScreen> createState() => _CoachingVisitScreenState();
 }
@@ -40,12 +42,11 @@ class _CoachingVisitScreenState extends State<CoachingVisitScreen> {
   }
 
   Future<void> _saveVisit() async {
-    // === VALIDATION ===
     if (_focusController.text.trim().isEmpty ||
         _issuesController.text.trim().isEmpty ||
         _actionsController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('❌ Please fill Key Focus, Issues and Actions'), backgroundColor: Colors.red),
+        const SnackBar(content: Text('❌ Please fill all required fields'), backgroundColor: Colors.red),
       );
       return;
     }
@@ -53,7 +54,7 @@ class _CoachingVisitScreenState extends State<CoachingVisitScreen> {
     final token = await storage.read(key: 'token');
 
     final body = {
-      "enterpriseId": 1,                    // ← Change later when we have list
+      "enterpriseId": widget.enterpriseId,        // ← Now uses the correct ID
       "sessionNo": 1,
       "keyFocusArea": _focusController.text,
       "keyIssuesIdentified": _issuesController.text,
@@ -71,7 +72,7 @@ class _CoachingVisitScreenState extends State<CoachingVisitScreen> {
     };
 
     final response = await http.post(
-      Uri.parse('http://192.168.43.231:5000/api/coaching-visits'),   // ←←← PUT YOUR REAL IP HERE
+      Uri.parse('http://192.168.43.231:5000/api/coaching-visits'),   
       headers: {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer $token'
@@ -83,7 +84,7 @@ class _CoachingVisitScreenState extends State<CoachingVisitScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('✅ Visit Saved Successfully!'), backgroundColor: Colors.green),
       );
-      Navigator.pop(context);   // go back to dashboard
+      Navigator.pop(context);
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error: ${response.body}')),
