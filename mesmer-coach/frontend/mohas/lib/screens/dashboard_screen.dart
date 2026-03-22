@@ -7,37 +7,28 @@ class DashboardScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('MESMER Coach Dashboard'),
-        backgroundColor: Colors.blue,
-      ),
-      body: Center(
+      appBar: AppBar(title: const Text('MESMER Coach Dashboard')),
+      body: Padding(
+        padding: const EdgeInsets.all(20),
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.person, size: 80, color: Colors.blue),
-            const SizedBox(height: 20),
-            const Text(
-              'Welcome, Coach!',
-              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 40),
+            const SizedBox(height: 30),
+            const Icon(Icons.person, size: 90, color: Colors.blue),
+            const Text('Welcome Coach!', style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 50),
             ElevatedButton.icon(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const CoachingVisitScreen()),
-                );
-              },
-              icon: const Icon(Icons.add),
-              label: const Text('New Coaching Visit', style: TextStyle(fontSize: 18)),
+              icon: const Icon(Icons.add, size: 30),
+              label: const Text('New Coaching Visit', style: TextStyle(fontSize: 20)),
               style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 15),
+                minimumSize: const Size(double.infinity, 60),
                 backgroundColor: Colors.blue,
               ),
+              onPressed: () {
+                Navigator.push(context, MaterialPageRoute(builder: (_) => const CoachingVisitScreen()));
+              },
             ),
             const SizedBox(height: 20),
-            const Text('Your enterprises and reports will appear here soon'),
+            const Text('Your enterprises and progress will appear here soon'),
           ],
         ),
       ),
