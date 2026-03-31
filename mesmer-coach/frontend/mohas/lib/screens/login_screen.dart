@@ -15,13 +15,16 @@ class _LoginScreenState extends State<LoginScreen> {
   final _passwordController = TextEditingController();
   bool _isLoading = false;
   final storage = const FlutterSecureStorage();
+  
+  // This tracks if the password should be shown
+  bool _isPasswordVisible = false;
 
   Future<void> _login() async {
     setState(() => _isLoading = true);
 
     try {
       final response = await http.post(
-        Uri.parse('http://192.168.43.231:5000/api/auth/login'),   // ←←← REPLACE WITH YOUR REAL IP
+        Uri.parse('http://192.168.43.231:5000/api/auth/login'),   
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'email': _emailController.text.trim(),
@@ -32,6 +35,7 @@ class _LoginScreenState extends State<LoginScreen> {
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         await storage.write(key: 'token', value: data['token']);
+        if (!mounted) return;
         Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const DashboardScreen()));
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -50,25 +54,71 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('MESMER Coach')),
+      backgroundColor: Colors.blue[300],
       body: Padding(
         padding: const EdgeInsets.all(20),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Text('MESMER Coach', style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 40),
-            TextField(controller: _emailController, decoration: const InputDecoration(labelText: 'Email')),
-            TextField(controller: _passwordController, obscureText: true, decoration: const InputDecoration(labelText: 'Password')),
-            const SizedBox(height: 30),
-            _isLoading
-                ? const CircularProgressIndicator()
-                : ElevatedButton(
-                    onPressed: _login,
-                    style: ElevatedButton.styleFrom(minimumSize: const Size(double.infinity, 50)),
-                    child: const Text('LOGIN'),
+        child: SingleChildScrollView( // Added to prevent overflow when keyboard appears
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const SizedBox(height: 100),
+              const Text('Mohas Coach', style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.white)),
+              const SizedBox(height: 40),
+              
+              // Email Field - FIXED: Removed duplicate label
+              TextField(
+                controller: _emailController,
+                decoration: InputDecoration(
+                  labelText: 'Email',
+                  filled: true,
+                  fillColor: Colors.white,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: const BorderSide(color: Colors.blue),
                   ),
-          ],
+                ),
+              ),
+              
+              const SizedBox(height: 20),
+
+              // Password Field - FIXED: Logic for visibility toggle
+              TextField(
+                controller: _passwordController,
+                obscureText: !_isPasswordVisible, // Toggles hidden text
+                decoration: InputDecoration(
+                  labelText: 'Password',
+                  filled: true,
+                  fillColor: Colors.white,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  suffixIcon: IconButton(
+                    onPressed: () {
+                      setState(() {
+                        _isPasswordVisible = !_isPasswordVisible;
+                      });
+                    },
+                    icon: Icon(
+                      _isPasswordVisible ? Icons.visibility : Icons.visibility_off,
+                    ),
+                  ),
+                ),
+              ),
+              
+              const SizedBox(height: 30),
+              
+              _isLoading
+                  ? const CircularProgressIndicator(color: Colors.white)
+                  : ElevatedButton(
+                      onPressed: _login,
+                      style: ElevatedButton.styleFrom(
+                        minimumSize: const Size(double.infinity, 50),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      ),
+                      child: const Text('LOGIN'),
+                    ),
+            ],
+          ),
         ),
       ),
     );

@@ -19,13 +19,13 @@ class _CoachingHistoryScreenState extends State<CoachingHistoryScreen> {
   @override
   void initState() {
     super.initState();
-    _loadVisits();
+    _loadHistory();
   }
 
-  Future<void> _loadVisits() async {
+  Future<void> _loadHistory() async {
     final token = await storage.read(key: 'token');
     final response = await http.get(
-      Uri.parse('http://192.168.43.231:5000/api/coaching-visits?enterpriseId=${widget.enterpriseId}'),
+      Uri.parse('http://YOUR_IP:5000/api/coaching-visits?enterpriseId=${widget.enterpriseId}'),
       headers: {'Authorization': 'Bearer $token'},
     );
 
@@ -34,24 +34,28 @@ class _CoachingHistoryScreenState extends State<CoachingHistoryScreen> {
         visits = jsonDecode(response.body);
         isLoading = false;
       });
+    } else {
+      setState(() => isLoading = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Previous Visits')),
+      appBar: AppBar(title: const Text('Coaching History')),
       body: isLoading
           ? const Center(child: CircularProgressIndicator())
           : visits.isEmpty
-              ? const Center(child: Text('No visits yet'))
+              ? const Center(child: Text('No coaching visits yet'))
               : ListView.builder(
                   itemCount: visits.length,
                   itemBuilder: (context, index) {
                     final v = visits[index];
                     return Card(
+                      margin: const EdgeInsets.all(8),
                       child: ListTile(
-                        title: Text('Session ${v['sessionNo']} - ${v['keyFocusArea']}'),
+                        leading: CircleAvatar(child: Text('${v['sessionNo']}')),
+                        title: Text(v['keyFocusArea'] ?? ''),
                         subtitle: Text(v['actionsAgreed'] ?? ''),
                         trailing: Text(v['date'].toString().substring(0, 10)),
                       ),
