@@ -25,7 +25,7 @@ class _CoachingHistoryScreenState extends State<CoachingHistoryScreen> {
   Future<void> _loadHistory() async {
     final token = await storage.read(key: 'token');
     final response = await http.get(
-      Uri.parse('http://YOUR_IP:5000/api/coaching-visits?enterpriseId=${widget.enterpriseId}'),
+      Uri.parse('http://192.168.43.231:5000/api/coaching-visits?enterpriseId=${widget.enterpriseId}'),
       headers: {'Authorization': 'Bearer $token'},
     );
 

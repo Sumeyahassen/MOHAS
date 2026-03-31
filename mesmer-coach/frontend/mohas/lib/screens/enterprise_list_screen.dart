@@ -25,7 +25,7 @@ class _EnterpriseListScreenState extends State<EnterpriseListScreen> {
   Future<void> _loadEnterprises() async {
     final token = await storage.read(key: 'token');
     final response = await http.get(
-      Uri.parse('http://YOUR_IP:5000/api/enterprises'),
+      Uri.parse('http://192.168.43.231:5000/api/enterprises'),   // ←←← CHANGE TO YOUR REAL IP
       headers: {'Authorization': 'Bearer $token'},
     );
 
@@ -34,6 +34,8 @@ class _EnterpriseListScreenState extends State<EnterpriseListScreen> {
         enterprises = jsonDecode(response.body);
         isLoading = false;
       });
+    } else {
+      setState(() => isLoading = false);
     }
   }
 
@@ -43,42 +45,44 @@ class _EnterpriseListScreenState extends State<EnterpriseListScreen> {
       appBar: AppBar(title: const Text('My Enterprises')),
       body: isLoading
           ? const Center(child: CircularProgressIndicator())
-          : ListView.builder(
-              itemCount: enterprises.length,
-              itemBuilder: (context, index) {
-                final e = enterprises[index];
-                return Card(
-                  margin: const EdgeInsets.all(10),
-                  child: ListTile(
-                    title: Text(e['enterpriseName'] ?? ''),
-                    subtitle: Text('${e['ownerName']} • ${e['sector']}'),
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        IconButton(
-                          icon: const Icon(Icons.history),
-                          onPressed: () => Navigator.push(
+          : enterprises.isEmpty
+              ? const Center(child: Text('No enterprises yet'))
+              : ListView.builder(
+                  itemCount: enterprises.length,
+                  itemBuilder: (context, index) {
+                    final e = enterprises[index];
+                    return Card(
+                      margin: const EdgeInsets.all(10),
+                      child: ListTile(
+                        title: Text(e['enterpriseName'] ?? ''),
+                        subtitle: Text('${e['ownerName']} • ${e['sector']}'),
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              icon: const Icon(Icons.history),
+                              onPressed: () => Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => CoachingHistoryScreen(enterpriseId: e['id']),
+                                ),
+                              ),
+                            ),
+                            const Icon(Icons.arrow_forward),
+                          ],
+                        ),
+                        onTap: () {
+                          Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (_) => CoachingHistoryScreen(enterpriseId: e['id']),
+                              builder: (_) => CoachingVisitScreen(enterpriseId: e['id']),
                             ),
-                          ),
-                        ),
-                        const Icon(Icons.arrow_forward),
-                      ],
-                    ),
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => CoachingVisitScreen(enterpriseId: e['id']),
-                        ),
-                      );
-                    },
-                  ),
-                );
-              },
-            ),
+                          );
+                        },
+                      ),
+                    );
+                  },
+                ),
     );
   }
 }

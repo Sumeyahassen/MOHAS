@@ -15,7 +15,7 @@ class ReportsScreen extends StatelessWidget {
             child: pw.Column(
               mainAxisAlignment: pw.MainAxisAlignment.center,
               children: [
-                pw.Text('MESMER CERTIFICATE OF COMPLETION', style: pw.TextStyle(fontSize: 28, fontWeight: pw.FontWeight.bold)),
+                pw.Text('MOHAS CERTIFICATE OF COMPLETION', style: pw.TextStyle(fontSize: 28, fontWeight: pw.FontWeight.bold)),
                 pw.SizedBox(height: 30),
                 pw.Text('This is to certify that', style: const pw.TextStyle(fontSize: 18)),
                 pw.SizedBox(height: 20),
