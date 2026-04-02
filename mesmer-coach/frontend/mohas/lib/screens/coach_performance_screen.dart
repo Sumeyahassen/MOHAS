@@ -78,7 +78,7 @@ class _CoachPerformanceScreenState extends State<CoachPerformanceScreen> {
                       margin: const EdgeInsets.all(10),
                       child: ListTile(
                         leading: CircleAvatar(
-                          backgroundColor: Colors.blue,
+                          backgroundColor: const Color(0xFF1565C0),
                           child: Text(coach['coachId'].toString()),
                         ),
                         title: Text(coach['coachName'], style: const TextStyle(fontWeight: FontWeight.bold)),

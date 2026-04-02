@@ -50,17 +50,17 @@ class _AssignEnterpriseScreenState extends State<AssignEnterpriseScreen> {
 
       if (response.statusCode == 200) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('✅ Coach Assigned Successfully!'), backgroundColor: Colors.green),
+          const SnackBar(content: Text('✅ Coach Assigned Successfully!'), backgroundColor: const Color(0xFF2E7D32)),
         );
         _loadData(); // refresh list
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed: ${response.body}'), backgroundColor: Colors.red),
+          SnackBar(content: Text('Failed: ${response.body}'), backgroundColor: const Color(0xFFC62828)),
         );
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+        SnackBar(content: Text('Error: $e'), backgroundColor: const Color(0xFFC62828)),
       );
     }
   }

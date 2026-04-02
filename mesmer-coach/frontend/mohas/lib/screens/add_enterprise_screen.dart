@@ -58,12 +58,12 @@ class _AddEnterpriseScreenState extends State<AddEnterpriseScreen> {
 
     if (response.statusCode == 200) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('✅ New Enterprise Added Successfully!'), backgroundColor: Colors.green),
+        const SnackBar(content: Text('✅ New Enterprise Added Successfully!'), backgroundColor: const Color(0xFF2E7D32)),
       );
       Navigator.pop(context);
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: ${response.body}'), backgroundColor: Colors.red),
+        SnackBar(content: Text('Error: ${response.body}'), backgroundColor: const Color(0xFFC62828)),
       );
     }
   }
