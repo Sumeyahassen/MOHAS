@@ -15,38 +15,52 @@ class _EnterpriseListScreenState extends State<EnterpriseListScreen> {
   final storage = const FlutterSecureStorage();
   List<dynamic> enterprises = [];
   bool isLoading = true;
+  String? userRole;
+  int? currentUserId;
 
   @override
   void initState() {
     super.initState();
-    _loadEnterprises();
+    _loadUserInfo();
   }
 
-  Future<void> _loadEnterprises() async {
+  Future<void> _loadUserInfo() async {
+    userRole = await storage.read(key: 'role');
     final token = await storage.read(key: 'token');
+    final ip = 'http://192.168.43.231:5000';   // ← YOUR REAL IP
+
+    // Load enterprises
     final response = await http.get(
-      Uri.parse('http://192.168.43.231:5000/api/enterprises'),   // ←←← CHANGE TO YOUR REAL IP
+      Uri.parse('$ip/api/enterprises'),
       headers: {'Authorization': 'Bearer $token'},
     );
 
     if (response.statusCode == 200) {
-      setState(() {
-        enterprises = jsonDecode(response.body);
-        isLoading = false;
-      });
-    } else {
-      setState(() => isLoading = false);
+      var allEnterprises = jsonDecode(response.body);
+
+      if (userRole == 'Coach') {
+        // Coach can see only enterprises assigned to him
+        currentUserId = int.tryParse((await storage.read(key: 'userId') ?? '0'));
+        enterprises = allEnterprises.where((e) => e['coachId'] == currentUserId).toList();
+      } else {
+        // Supervisor / M&E / Admin can see all
+        enterprises = allEnterprises;
+      }
     }
+
+    setState(() => isLoading = false);
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('My Enterprises')),
+      appBar: AppBar(
+        title: Text(userRole == 'Coach' ? 'My Enterprises' : 'All Enterprises'),
+      ),
       body: isLoading
           ? const Center(child: CircularProgressIndicator())
           : enterprises.isEmpty
-              ? const Center(child: Text('No enterprises yet'))
+              ? const Center(child: Text('No enterprises assigned yet'))
               : ListView.builder(
                   itemCount: enterprises.length,
                   itemBuilder: (context, index) {
