@@ -42,3 +42,15 @@ router.post('/login', async (req, res) => {
 });
 
 module.exports = router;
+
+router.get('/coaches', async (req, res) => {
+  try {
+    const coaches = await prisma.user.findMany({
+      where: { role: 'Coach' },
+      select: { id: true, name: true }
+    });
+    res.json(coaches);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
