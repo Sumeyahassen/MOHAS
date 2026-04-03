@@ -14,6 +14,20 @@ router.post('/', async (req, res) => {
   res.json(enterprise);
 });
 
+// Assign a coach to an enterprise (Supervisor action)
+router.put('/:id/assign-coach', async (req, res) => {
+  try {
+    const { coachId } = req.body;
+    const enterprise = await prisma.enterprise.update({
+      where: { id: parseInt(req.params.id) },
+      data: { coachId: parseInt(coachId) }
+    });
+    res.json({ success: true, enterprise });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Get IAP for one enterprise
 router.get('/:id/iap', async (req, res) => {
   try {

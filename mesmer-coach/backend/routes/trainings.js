@@ -21,24 +21,24 @@ router.post('/', async (req, res) => {
 
     const session = await prisma.trainingSession.create({
       data: {
-        moduleName,
+        moduleName: moduleName || 'Untitled Training',
         date: new Date(date),
-        location,
-        trainerId: parseInt(trainerId)
+        location: location || 'Not specified',
+        trainerId: parseInt(trainerId) || 1,
+        attendance: {}   // ← This fixes the error
       }
     });
 
     res.json({ success: true, session });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error(error);
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
 // Get attendance for a session
 router.get('/:id/attendance', async (req, res) => {
   try {
-    const sessionId = parseInt(req.params.id);
-    // For now, return all enterprises (you can improve later)
     const enterprises = await prisma.enterprise.findMany({
       select: { id: true, enterpriseName: true, ownerName: true }
     });
@@ -52,9 +52,8 @@ router.get('/:id/attendance', async (req, res) => {
 router.post('/:id/attendance', async (req, res) => {
   try {
     const sessionId = parseInt(req.params.id);
-    const attendanceData = req.body; // { enterpriseId: true/false }
+    const attendanceData = req.body;
 
-    // For simplicity, we save attendance as JSON in attendance field
     const session = await prisma.trainingSession.update({
       where: { id: sessionId },
       data: { attendance: attendanceData }

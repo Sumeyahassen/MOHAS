@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const prisma = require('../prisma/client');
 
+// POST /api/coaching-visits — create a new visit
 router.post('/', async (req, res) => {
   try {
     const {
@@ -13,14 +14,15 @@ router.post('/', async (req, res) => {
       evidenceUrls,
       followUpDate,
       followUpType,
-      measurableResults
+      measurableResults,
+      createdBy
     } = req.body;
 
     const visit = await prisma.coachingVisit.create({
       data: {
         enterpriseId: parseInt(enterpriseId),
         sessionNo: parseInt(sessionNo),
-        date: new Date(),                    // ← Automatically set to today
+        date: new Date(),
         keyFocusArea,
         keyIssuesIdentified,
         actionsAgreed,
@@ -28,7 +30,8 @@ router.post('/', async (req, res) => {
         followUpDate: followUpDate ? new Date(followUpDate) : null,
         followUpType,
         measurableResults: measurableResults || {},
-        createdBy: 1                         // Temporary — later we will use JWT user ID
+        createdBy: parseInt(createdBy) || 1,
+        qcStatus: 'pending'   // All new visits start as pending QC
       }
     });
 
@@ -39,8 +42,7 @@ router.post('/', async (req, res) => {
   }
 });
 
-module.exports = router;
-
+// GET /api/coaching-visits — list visits, optionally filtered by enterpriseId
 router.get('/', async (req, res) => {
   try {
     const { enterpriseId } = req.query;
@@ -55,15 +57,47 @@ router.get('/', async (req, res) => {
   }
 });
 
-router.get('/coach-performance', async (req, res) => {
+// GET /api/coaching-visits/qc — visits pending QC review
+router.get('/qc', async (req, res) => {
   try {
     const visits = await prisma.coachingVisit.findMany({
+      where: { qcStatus: 'pending' },
+      orderBy: { createdAt: 'desc' },
       include: { enterprise: true }
     });
+    res.json(visits);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
 
-    const users = await prisma.user.findMany({
-      where: { role: 'Coach' }
+// PATCH /api/coaching-visits/:id/qc — approve or reject a visit
+router.patch('/:id/qc', async (req, res) => {
+  try {
+    const { status, note } = req.body; // status: 'approved' | 'rejected'
+    if (!['approved', 'rejected'].includes(status)) {
+      return res.status(400).json({ error: 'status must be approved or rejected' });
+    }
+
+    const visit = await prisma.coachingVisit.update({
+      where: { id: parseInt(req.params.id) },
+      data: {
+        qcStatus: status,
+        qcNote: note || null
+      }
     });
+
+    res.json({ success: true, visit });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// GET /api/coaching-visits/coach-performance — per-coach metrics
+router.get('/coach-performance', async (req, res) => {
+  try {
+    const visits = await prisma.coachingVisit.findMany({ include: { enterprise: true } });
+    const users = await prisma.user.findMany({ where: { role: 'Coach' } });
 
     const performance = users.map(user => {
       const coachVisits = visits.filter(v => v.createdBy === user.id);
@@ -75,7 +109,7 @@ router.get('/coach-performance', async (req, res) => {
       return {
         coachId: user.id,
         coachName: user.name,
-        totalVisits: totalVisits,
+        totalVisits,
         enterprisesHandled: enterprises.size,
         avgSessionsPerEnterprise: avgSessions,
         completionRate: enterprises.size > 0 ? Math.round((completed / enterprises.size) * 100) : 0
@@ -87,3 +121,6 @@ router.get('/coach-performance', async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
+
+module.exports = router;
+
