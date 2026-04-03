@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'dart:io';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:dio/dio.dart';
 import '../services/offline_sync.dart';
 import '../theme/app_theme.dart';
+import '../constants.dart';
 
 class CoachingVisitScreen extends StatefulWidget {
   final int enterpriseId;
@@ -33,12 +36,84 @@ class _CoachingVisitScreenState extends State<CoachingVisitScreen> {
   };
 
   double currentRevenue = 0;
-  List<String> photoUrls = [];
-  bool _isSaving = false;
 
+  // Stores server URLs after upload (not local paths)
+  List<String> photoUrls = [];
+
+  // Tracks local file paths for preview before upload
+  List<String> _localPhotoPaths = [];
+
+  bool _isSaving = false;
+  bool _isUploading = false; // True while a photo is being uploaded
+
+  /// Pick a photo from camera and immediately upload it to the server.
+  /// The returned server URL is stored in photoUrls[] for the visit record.
   Future<void> _pickPhoto() async {
-    final XFile? photo = await picker.pickImage(source: ImageSource.camera);
-    if (photo != null) setState(() => photoUrls.add(photo.path));
+    final XFile? photo = await picker.pickImage(
+      source: ImageSource.camera,
+      imageQuality: 80, // Compress to reduce upload size
+    );
+    if (photo == null) return;
+
+    setState(() {
+      _localPhotoPaths.add(photo.path); // Show preview immediately
+      _isUploading = true;
+    });
+
+    final token = await storage.read(key: 'token');
+
+    try {
+      // Use Dio for multipart upload
+      final dio = Dio();
+      final formData = FormData.fromMap({
+        'photo': await MultipartFile.fromFile(photo.path,
+            filename: 'evidence_${DateTime.now().millisecondsSinceEpoch}.jpg'),
+      });
+
+      final response = await dio.post(
+        '${AppConstants.baseUrl}/api/upload/photo',
+        data: formData,
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
+      );
+
+      if (response.statusCode == 200) {
+        // Store the server URL — this is what gets saved in the visit record
+        final serverUrl = response.data['url'] as String;
+        setState(() => photoUrls.add(serverUrl));
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Photo uploaded to server'),
+              backgroundColor: AppColors.success,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      } else {
+        // Upload failed — keep local path as fallback
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Photo saved locally (upload failed)'),
+              backgroundColor: AppColors.warning,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Upload error: $e'),
+            backgroundColor: AppColors.warning,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }
+
+    if (mounted) setState(() => _isUploading = false);
   }
 
   Future<void> _saveVisit() async {
@@ -144,16 +219,68 @@ class _CoachingVisitScreenState extends State<CoachingVisitScreen> {
             _sectionLabel('Evidence Photos'),
             const SizedBox(height: 10),
             OutlinedButton.icon(
-              icon: const Icon(Icons.camera_alt_rounded, color: AppColors.primary),
-              label: Text(photoUrls.isEmpty ? 'Take Photo Evidence' : '${photoUrls.length} photo(s) attached — add more',
-                  style: const TextStyle(color: AppColors.primary)),
+              icon: _isUploading
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary),
+                    )
+                  : const Icon(Icons.camera_alt_rounded, color: AppColors.primary),
+              label: Text(
+                _isUploading
+                    ? 'Uploading photo...'
+                    : _localPhotoPaths.isEmpty
+                        ? 'Take Photo Evidence'
+                        : '${photoUrls.length} uploaded — add more',
+                style: const TextStyle(color: AppColors.primary),
+              ),
               style: OutlinedButton.styleFrom(
                 side: const BorderSide(color: AppColors.primary),
                 minimumSize: const Size(double.infinity, 48),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
               ),
-              onPressed: _pickPhoto,
+              onPressed: _isUploading ? null : _pickPhoto,
             ),
+            // Show thumbnails of captured photos
+            if (_localPhotoPaths.isNotEmpty) ...[
+              const SizedBox(height: 10),
+              SizedBox(
+                height: 80,
+                child: ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: _localPhotoPaths.length,
+                  separatorBuilder: (_, __) => const SizedBox(width: 8),
+                  itemBuilder: (context, i) => Stack(
+                    children: [
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: Image.file(
+                          File(_localPhotoPaths[i]),
+                          width: 80,
+                          height: 80,
+                          fit: BoxFit.cover,
+                        ),
+                      ),
+                      // Green checkmark overlay if this photo was uploaded
+                      if (i < photoUrls.length)
+                        Positioned(
+                          top: 4,
+                          right: 4,
+                          child: Container(
+                            width: 20,
+                            height: 20,
+                            decoration: const BoxDecoration(
+                              color: AppColors.success,
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(Icons.check, size: 12, color: Colors.white),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
 
             const SizedBox(height: 32),
             SizedBox(

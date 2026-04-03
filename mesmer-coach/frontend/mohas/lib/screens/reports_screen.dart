@@ -22,7 +22,7 @@ class ReportsScreen extends StatelessWidget {
                 pw.Text('This is to certify that', style: const pw.TextStyle(fontSize: 16)),
                 pw.SizedBox(height: 20),
                 pw.Text('Sumeya Trading', style: pw.TextStyle(fontSize: 22, fontWeight: pw.FontWeight.bold)),
-                pw.Text('has successfully completed the MESMER Business Coaching Program'),
+                pw.Text('has successfully completed the MOHAS Business Coaching Program'),
                 pw.SizedBox(height: 30),
                 pw.Text('Date: March 2026', style: const pw.TextStyle(fontSize: 14)),
                 pw.Text('Certificate ID: MESMER-2026-001', style: const pw.TextStyle(fontSize: 14)),

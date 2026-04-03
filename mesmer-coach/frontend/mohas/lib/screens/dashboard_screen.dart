@@ -3,6 +3,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../theme/app_theme.dart';
 import 'enterprise_list_screen.dart';
 import 'iap_screen.dart';
+import 'training_screen.dart';
 import 'login_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
@@ -34,7 +35,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               child: const Icon(Icons.business_center_rounded, size: 20, color: Colors.white),
             ),
             const SizedBox(width: 10),
-            const Text('MESMER Coach'),
+            const Text('MOHAS Coach'),
           ],
         ),
         actions: [
@@ -107,6 +108,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 ),
               ),
             ],
+          ),
+          const SizedBox(height: 12),
+          // Training sessions quick access for coaches
+          _actionCard(
+            icon: Icons.school_rounded,
+            label: 'Training Sessions',
+            color: AppColors.accent,
+            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const TrainingScreen())),
           ),
           const SizedBox(height: 24),
 

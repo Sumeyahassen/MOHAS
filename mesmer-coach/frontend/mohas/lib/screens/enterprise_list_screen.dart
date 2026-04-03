@@ -6,6 +6,7 @@ import 'coaching_visit_screen.dart';
 import 'coaching_history_screen.dart';
 import 'assessment_screen.dart';
 import 'iap_screen.dart';
+import 'graduation_screen.dart';
 
 class EnterpriseListScreen extends StatefulWidget {
   const EnterpriseListScreen({super.key});
@@ -194,6 +195,20 @@ class _EnterpriseListScreenState extends State<EnterpriseListScreen> {
                 onTap: () {
                   Navigator.pop(context);
                   Navigator.push(context, MaterialPageRoute(builder: (_) => AssessmentScreen(enterpriseId: e['id'], type: 'endline')));
+                },
+              ),
+              // Graduation checklist — shows certificate lock status
+              ListTile(
+                leading: const Icon(Icons.workspace_premium_rounded, color: Color(0xFFFFA000)),
+                title: const Text('Graduation & Certificate'),
+                onTap: () {
+                  Navigator.pop(context);
+                  Navigator.push(context, MaterialPageRoute(
+                    builder: (_) => GraduationScreen(
+                      enterpriseId: e['id'],
+                      enterpriseName: e['enterpriseName'] ?? 'Enterprise',
+                    ),
+                  ));
                 },
               ),
             ],
