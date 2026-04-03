@@ -5,7 +5,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 class AssessmentScreen extends StatefulWidget {
   final int enterpriseId;
-  final String type; // "baseline", "midline", or "endline"
+  final String type; // "baseline", "midline", "endline"
   const AssessmentScreen({super.key, required this.enterpriseId, required this.type});
 
   @override
@@ -32,8 +32,8 @@ class _AssessmentScreenState extends State<AssessmentScreen> {
       "enterpriseId": widget.enterpriseId,
       "type": widget.type,
       "responses": {
-        "baselineMonthlyRevenue": double.tryParse(_revenueController.text) ?? 0,
-        "baselineNoOfEmployees": int.tryParse(_employeesController.text) ?? 0,
+        "monthlyRevenue": double.tryParse(_revenueController.text) ?? 0,
+        "noOfEmployees": int.tryParse(_employeesController.text) ?? 0,
         "bookkeepingPractice": _bookkeepingController.text,
         "topTwoPainPoints": _painPointsController.text,
       }
@@ -50,12 +50,15 @@ class _AssessmentScreenState extends State<AssessmentScreen> {
 
     if (response.statusCode == 200) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('${widget.type.toUpperCase()} Assessment Saved!'), backgroundColor: const Color(0xFF2E7D32)),
+        SnackBar(
+          content: Text('${widget.type.toUpperCase()} Assessment Saved Successfully!'),
+          backgroundColor: Colors.green,
+        ),
       );
       Navigator.pop(context);
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: ${response.body}'), backgroundColor: const Color(0xFFC62828)),
+        SnackBar(content: Text('Error: ${response.body}'), backgroundColor: Colors.red),
       );
     }
 
@@ -75,28 +78,31 @@ class _AssessmentScreenState extends State<AssessmentScreen> {
               decoration: const InputDecoration(labelText: 'Monthly Revenue'),
               keyboardType: TextInputType.number,
             ),
+            const SizedBox(height: 10),
             TextField(
               controller: _employeesController,
               decoration: const InputDecoration(labelText: 'Number of Employees'),
               keyboardType: TextInputType.number,
             ),
+            const SizedBox(height: 10),
             TextField(
               controller: _bookkeepingController,
-              decoration: const InputDecoration(labelText: 'Bookkeeping Practice'),
+              decoration: const InputDecoration(labelText: 'Bookkeeping Practice (Yes/No + details)'),
               maxLines: 2,
             ),
+            const SizedBox(height: 10),
             TextField(
               controller: _painPointsController,
               decoration: const InputDecoration(labelText: 'Top 2 Pain Points'),
               maxLines: 3,
             ),
-            const SizedBox(height: 30),
+            const SizedBox(height: 40),
             ElevatedButton(
               onPressed: isSaving ? null : _saveAssessment,
               style: ElevatedButton.styleFrom(minimumSize: const Size(double.infinity, 55)),
               child: isSaving
                   ? const CircularProgressIndicator(color: Colors.white)
-                  : Text('Save ${widget.type.toUpperCase()} Assessment'),
+                  : Text('Save ${widget.type.toUpperCase()} Assessment', style: const TextStyle(fontSize: 18)),
             ),
           ],
         ),

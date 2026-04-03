@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import '../theme/app_theme.dart';
+import 'package:mesmer_coach/screens/login_screen.dart';
+import 'package:mesmer_coach/theme/app_theme.dart';
+
 import 'enterprise_list_screen.dart';
 import 'reports_screen.dart';
 import 'qc_queue_screen.dart';
@@ -10,7 +12,7 @@ import 'all_visits_screen.dart';
 import 'coach_performance_screen.dart';
 import 'assign_enterprise_screen.dart';
 import 'add_enterprise_screen.dart';
-import 'login_screen.dart';
+import 'training_screen.dart';   // ← Training Module added
 
 class SupervisorDashboard extends StatefulWidget {
   const SupervisorDashboard({super.key});
@@ -33,10 +35,11 @@ class _SupervisorDashboardState extends State<SupervisorDashboard> {
 
   Future<void> _loadData() async {
     final token = await storage.read(key: 'token');
-    const ip = 'http://192.168.43.231:5000';
+    const ip = 'http://192.168.43.231:5000';   // ← CHANGE TO YOUR REAL IP
     try {
       final entRes = await http.get(Uri.parse('$ip/api/enterprises'), headers: {'Authorization': 'Bearer $token'});
       if (entRes.statusCode == 200) totalEnterprises = jsonDecode(entRes.body).length;
+
       final visitRes = await http.get(Uri.parse('$ip/api/coaching-visits'), headers: {'Authorization': 'Bearer $token'});
       if (visitRes.statusCode == 200) totalVisits = jsonDecode(visitRes.body).length;
     } catch (e) {}
@@ -93,7 +96,6 @@ class _SupervisorDashboardState extends State<SupervisorDashboard> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Banner
           Container(
             width: double.infinity,
             padding: const EdgeInsets.all(20),
@@ -112,7 +114,6 @@ class _SupervisorDashboardState extends State<SupervisorDashboard> {
           ),
           const SizedBox(height: 20),
 
-          // Stats
           Row(
             children: [
               Expanded(child: _statCard('Enterprises', totalEnterprises.toString(), Icons.business_rounded, AppColors.primary)),
@@ -144,12 +145,19 @@ class _SupervisorDashboardState extends State<SupervisorDashboard> {
         children: [
           const Text('Management Tools', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
           const SizedBox(height: 12),
+
           _menuTile(Icons.person_add_rounded, 'Assign Enterprise to Coach', 'Manage coach assignments', () =>
               Navigator.push(context, MaterialPageRoute(builder: (_) => const AssignEnterpriseScreen()))),
+
           _menuTile(Icons.add_business_rounded, 'Add New Enterprise', 'Register a new enterprise', () =>
               Navigator.push(context, MaterialPageRoute(builder: (_) => const AddEnterpriseScreen()))),
+
+          _menuTile(Icons.school_rounded, 'Training Sessions & Attendance', 'Manage training and take attendance', () =>
+              Navigator.push(context, MaterialPageRoute(builder: (_) => const TrainingScreen()))),   // ← Training added here
+
           _menuTile(Icons.checklist_rounded, 'QC Queue', 'Review quality control items', () =>
               Navigator.push(context, MaterialPageRoute(builder: (_) => const QCQueueScreen()))),
+
           _menuTile(Icons.view_list_rounded, 'All Visits', 'Browse all coaching visits', () =>
               Navigator.push(context, MaterialPageRoute(builder: (_) => const AllVisitsScreen()))),
         ],
