@@ -9,20 +9,27 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Auth route
+// Auth routes
 app.use('/api/auth', require('./routes/auth'));
 
-// Protected routes
+// Enterprises
 app.use('/api/enterprises', require('./routes/enterprises'));
+
+// Coaching Visits
 app.use('/api/coaching-visits', require('./routes/coaching-visits'));
+
+// Assessments
+app.use('/api/assessments', require('./routes/assessments'));
+
+// Training Sessions + Attendance
+app.use('/api/trainings', require('./routes/trainings'));
 
 // Test route
 app.get('/', (req, res) => {
-  res.json({ message: "✅ MESMER Coach Backend is RUNNING and ready for phone!" });
+  res.json({ message: "✅ MESMER Coach Backend is running!" });
 });
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, '0.0.0.0', () => {     // ←←← THIS LINE IS THE FIX
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 Server running on http://0.0.0.0:${PORT}`);
-  console.log(`📱 Use this IP in Flutter: http://192.168.43.231:${PORT}`);
 });
