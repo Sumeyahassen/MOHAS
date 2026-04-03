@@ -151,7 +151,7 @@ class _CoachingVisitScreenState extends State<CoachingVisitScreen> {
     } else {
       final token = await storage.read(key: 'token');
       final response = await http.post(
-        Uri.parse('http://192.168.43.231:5000/api/coaching-visits'),
+        Uri.parse('${AppConstants.baseUrl}/api/coaching-visits'),
         headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer $token'},
         body: jsonEncode(body),
       );

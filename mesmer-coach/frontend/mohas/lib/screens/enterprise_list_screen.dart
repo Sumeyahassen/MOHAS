@@ -2,11 +2,34 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import '../constants.dart';
 import 'coaching_visit_screen.dart';
 import 'coaching_history_screen.dart';
 import 'assessment_screen.dart';
 import 'iap_screen.dart';
 import 'graduation_screen.dart';
+
+// Simple in-memory cache — avoids re-fetching enterprises on every navigation
+class _EnterpriseCache {
+  static List<dynamic>? data;
+  static DateTime? fetchedAt;
+
+  // Cache is valid for 2 minutes
+  static bool get isValid =>
+      data != null &&
+      fetchedAt != null &&
+      DateTime.now().difference(fetchedAt!).inMinutes < 2;
+
+  static void set(List<dynamic> enterprises) {
+    data = enterprises;
+    fetchedAt = DateTime.now();
+  }
+
+  static void clear() {
+    data = null;
+    fetchedAt = null;
+  }
+}
 
 class EnterpriseListScreen extends StatefulWidget {
   const EnterpriseListScreen({super.key});
@@ -46,8 +69,23 @@ class _EnterpriseListScreenState extends State<EnterpriseListScreen> {
   }
 
   Future<void> _loadEnterprises() async {
+    // Use cache if still valid — avoids unnecessary network call
+    if (_EnterpriseCache.isValid) {
+      final role = await storage.read(key: 'role');
+      final userId = await storage.read(key: 'userId');
+      var all = _EnterpriseCache.data!;
+      setState(() {
+        enterprises = role == 'Coach'
+            ? all.where((e) => e['coachId'].toString() == userId).toList()
+            : List<dynamic>.from(all);
+        _filtered = enterprises;
+        isLoading = false;
+      });
+      return;
+    }
+
     final token = await storage.read(key: 'token');
-    const ip = 'http://192.168.43.231:5000';   // ← CHANGE TO YOUR REAL IP
+    const ip = AppConstants.baseUrl;
 
     try {
       final response = await http.get(
@@ -57,6 +95,7 @@ class _EnterpriseListScreenState extends State<EnterpriseListScreen> {
 
       if (response.statusCode == 200) {
         var all = jsonDecode(response.body);
+        _EnterpriseCache.set(List<dynamic>.from(all)); // Store in cache
         final role = await storage.read(key: 'role');
         final userId = await storage.read(key: 'userId');
 

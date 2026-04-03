@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import '../constants.dart';
 import '../theme/app_theme.dart';
 
 class IAPScreen extends StatefulWidget {
@@ -26,7 +27,7 @@ class _IAPScreenState extends State<IAPScreen> {
   Future<void> _loadIAP() async {
     setState(() => isLoading = true);
     final token = await storage.read(key: 'token');
-    const ip = 'http://192.168.43.231:5000';
+    const ip = AppConstants.baseUrl;
     try {
       final response = await http.get(
         Uri.parse('$ip/api/enterprises/${widget.enterpriseId}/iap'),
@@ -53,7 +54,7 @@ class _IAPScreenState extends State<IAPScreen> {
     }
     setState(() => isSaving = true);
     final token = await storage.read(key: 'token');
-    const ip = 'http://192.168.43.231:5000';
+    const ip = AppConstants.baseUrl;
     try {
       final response = await http.post(
         Uri.parse('$ip/api/enterprises/${widget.enterpriseId}/iap'),

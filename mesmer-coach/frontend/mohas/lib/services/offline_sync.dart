@@ -3,6 +3,7 @@ import 'package:path/path.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import '../constants.dart';
 
 class OfflineSync {
   static Database? _db;
@@ -32,7 +33,7 @@ class OfflineSync {
     final pending = await db.query('pending_visits');
 
     final token = await storage.read(key: 'token');
-    final ip = 'http://YOUR_IP:5000';   // ←←← CHANGE TO YOUR REAL IP
+    final ip = AppConstants.baseUrl;
 
     for (var row in pending) {
       try {

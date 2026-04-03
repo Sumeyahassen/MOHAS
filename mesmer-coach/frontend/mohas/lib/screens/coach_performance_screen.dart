@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import '../constants.dart';
 
 class CoachPerformanceScreen extends StatefulWidget {
   const CoachPerformanceScreen({super.key});
@@ -22,7 +23,7 @@ class _CoachPerformanceScreenState extends State<CoachPerformanceScreen> {
 
   Future<void> _loadCoachPerformance() async {
     final token = await storage.read(key: 'token');
-    final ip = 'http://192.168.43.231:5000';   // ←←← CHANGE TO YOUR REAL IP
+    final ip = AppConstants.baseUrl;
 
     // Get all visits
     final response = await http.get(

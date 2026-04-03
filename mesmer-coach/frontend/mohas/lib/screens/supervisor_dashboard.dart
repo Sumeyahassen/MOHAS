@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import '../constants.dart';
 import '../theme/app_theme.dart';
 import 'enterprise_list_screen.dart';
 import 'reports_screen.dart';
@@ -34,7 +35,7 @@ class _SupervisorDashboardState extends State<SupervisorDashboard> {
 
   Future<void> _loadData() async {
     final token = await storage.read(key: 'token');
-    const ip = 'http://192.168.43.231:5000';
+    const ip = AppConstants.baseUrl;
     try {
       final entRes = await http.get(Uri.parse('$ip/api/enterprises'), headers: {'Authorization': 'Bearer $token'});
       if (entRes.statusCode == 200) totalEnterprises = jsonDecode(entRes.body).length;

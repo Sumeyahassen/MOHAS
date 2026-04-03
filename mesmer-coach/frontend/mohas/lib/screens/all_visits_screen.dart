@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import '../constants.dart';
 
 class AllVisitsScreen extends StatefulWidget {
   const AllVisitsScreen({super.key});
@@ -22,7 +23,7 @@ class _AllVisitsScreenState extends State<AllVisitsScreen> {
 
   Future<void> _loadAllVisits() async {
     final token = await storage.read(key: 'token');
-    final ip = 'http://192.168.43.231:5000';
+    final ip = AppConstants.baseUrl;
     final response = await http.get(Uri.parse('$ip/api/coaching-visits'), headers: {'Authorization': 'Bearer $token'});
     if (response.statusCode == 200) {
       setState(() {
