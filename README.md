@@ -287,4 +287,4 @@ Certificate is locked until all three pass:
 
 ---
 
-*Built by Mohas Consult — empowering MSMEs across Ethiopia.*
+*Built by Sumeya hassen (Mohas conselt) — empowering MSMEs across Ethiopia.*
