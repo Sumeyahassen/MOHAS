@@ -1,4 +1,4 @@
-# MESMER Coach — Business Coaching Management App
+# MOHAS Coach — Business Coaching Management App
 
 > A full-stack mobile application built for **Mohas Consult** to manage the MESMER Business Coaching Program across Ethiopia. Designed for field coaches, supervisors, and program managers to track enterprise development, coaching visits, assessments, and graduation.
 
